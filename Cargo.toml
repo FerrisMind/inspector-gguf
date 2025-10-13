@@ -1,6 +1,6 @@
 [package]
 name = "inspector-gguf"
-version = "0.11.0"
+version = "0.1.0"
 edition = "2024"
 description = "A powerful GGUF file inspection tool with a graphical and command-line interface"
 license = "MIT"

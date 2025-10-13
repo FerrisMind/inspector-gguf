@@ -23,21 +23,45 @@ const SUCCESS_GREEN: egui::Color32 = egui::Color32::from_rgb(16, 185, 129);
 
 fn apply_inspector_theme(ctx: &egui::Context) {
     let mut style = (*ctx.style()).clone();
+    let mut visuals = egui::Visuals::dark();
 
-    // Widgets
-    style.visuals.widgets.inactive.bg_fill = TECH_GRAY;
-    style.visuals.widgets.inactive.corner_radius = egui::CornerRadius::same(6);
-    style.visuals.widgets.active.bg_fill = INSPECTOR_BLUE;
-    style.visuals.widgets.active.corner_radius = egui::CornerRadius::same(6);
-    style.visuals.widgets.hovered.bg_fill = GADGET_YELLOW;
+    // Единая цветовая схема Inspector Gadget для состояний кнопок:
+    // Неактивные: синий фон (INSPECTOR_BLUE) с белым текстом
+    visuals.widgets.inactive.bg_fill = INSPECTOR_BLUE;
+    visuals.widgets.inactive.weak_bg_fill = INSPECTOR_BLUE;
+    visuals.widgets.inactive.corner_radius = egui::CornerRadius::same(8);
+    visuals.widgets.inactive.fg_stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
 
-    // Selection and accents
-    style.visuals.selection.bg_fill = GADGET_YELLOW;
-    style.visuals.override_text_color = Some(egui::Color32::WHITE);
+    // При наведении: серый фон (TECH_GRAY) с белым текстом
+    visuals.widgets.hovered.bg_fill = TECH_GRAY;
+    visuals.widgets.hovered.weak_bg_fill = TECH_GRAY;
+    visuals.widgets.hovered.corner_radius = egui::CornerRadius::same(8);
+    visuals.widgets.hovered.fg_stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
 
-    // Slightly tinted panels
-    style.visuals.faint_bg_color = egui::Color32::from_rgb(20, 28, 36);
+    // При нажатии: жёлтый фон (GADGET_YELLOW) с чёрным текстом
+    visuals.widgets.active.bg_fill = GADGET_YELLOW;
+    visuals.widgets.active.weak_bg_fill = GADGET_YELLOW;
+    visuals.widgets.active.corner_radius = egui::CornerRadius::same(8);
+    visuals.widgets.active.fg_stroke = egui::Stroke::new(1.0, egui::Color32::BLACK);
 
+    // Accent цвета
+    visuals.selection.bg_fill = GADGET_YELLOW;
+    visuals.hyperlink_color = GADGET_YELLOW;
+    visuals.override_text_color = None;
+
+    // Фоны панелей
+    visuals.window_fill = egui::Color32::from_rgb(15, 23, 42);
+    visuals.panel_fill = egui::Color32::from_rgb(30, 41, 59);
+    visuals.faint_bg_color = egui::Color32::from_rgb(51, 65, 85);
+
+    // Дополнительные элементы
+    visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(30, 41, 59);
+    visuals.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
+    visuals.widgets.open.bg_fill = egui::Color32::from_rgb(51, 65, 85);
+    visuals.widgets.open.fg_stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
+
+    // Применяем визуальные настройки через Style
+    style.visuals = visuals;
     ctx.set_style(style);
 }
 
@@ -47,8 +71,6 @@ pub struct GgufApp {
     pub loading: bool,
     pub loading_progress: Arc<Mutex<f32>>,
     pub loading_result: LoadingResult,
-    // theme applied flag
-    pub theme_applied: bool,
 }
 
 impl Default for GgufApp {
@@ -59,7 +81,6 @@ impl Default for GgufApp {
             loading: false,
             loading_progress: Arc::new(Mutex::new(0.0)),
             loading_result: Arc::new(Mutex::new(None)),
-            theme_applied: false,
         }
     }
 }
@@ -74,10 +95,35 @@ impl eframe::App for GgufApp {
             0.0 // Значение по умолчанию если не удается получить доступ
         };
 
-        if !self.theme_applied {
-            apply_inspector_theme(ctx);
-            self.theme_applied = true;
-        }
+        // Применяем тему Inspector Gadget
+        apply_inspector_theme(ctx);
+
+        // Inspector Gadget Header
+        egui::TopBottomPanel::top("inspector_header").show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                // Логотип Inspector Gadget (увеличительное стекло)
+                ui.add_space(8.0);
+                ui.label(egui::RichText::new("🔍").size(24.0));
+                ui.add_space(8.0);
+                
+                // Заголовок приложения
+                ui.vertical(|ui| {
+                    ui.heading(egui::RichText::new("Inspector GGUF").color(egui::Color32::WHITE).size(20.0));
+                    ui.label(egui::RichText::new("Case Analysis Tool").color(TECH_GRAY).size(12.0));
+                });
+                
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    // Статус операции
+                    if self.loading {
+                        ui.label(egui::RichText::new("🔄 Scanning...").color(GADGET_YELLOW));
+                    } else if !self.metadata.is_empty() {
+                        ui.label(egui::RichText::new("✅ Case Loaded").color(SUCCESS_GREEN));
+                    } else {
+                        ui.label(egui::RichText::new("📋 Ready for Investigation").color(TECH_GRAY));
+                    }
+                });
+            });
+        });
 
         if self.loading {
             if current_progress < 0.0 {
@@ -104,8 +150,12 @@ impl eframe::App for GgufApp {
             .default_width(120.0)
             .resizable(true)
             .show(ctx, |ui| {
-                ui.heading("Mission\nControl");
-                ui.add_space(6.0);
+                ui.vertical_centered(|ui| {
+                    ui.label(egui::RichText::new("🎯").size(20.0));
+                    ui.heading(egui::RichText::new("Mission Control").color(egui::Color32::WHITE).size(14.0));
+                    ui.label(egui::RichText::new("Inspector's Toolkit").color(TECH_GRAY).size(10.0));
+                });
+                ui.add_space(8.0);
 
                 if ui
                     .add_sized([100.0, 34.0], egui::Button::new("Load"))
@@ -185,7 +235,12 @@ impl eframe::App for GgufApp {
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("🔎 Inspector GGUF - Case Analysis Tool");
+            ui.vertical_centered(|ui| {
+                ui.label(egui::RichText::new("📊").size(20.0));
+                ui.heading(egui::RichText::new("Investigation Dashboard").color(egui::Color32::WHITE).size(18.0));
+                ui.label(egui::RichText::new("Case Evidence & Analysis").color(TECH_GRAY).size(12.0));
+            });
+            ui.add_space(12.0);
 
             // Drop zone: поддержка drag-n-drop файлов
             let dropped = ctx.input(|i| i.raw.dropped_files.clone());
@@ -233,8 +288,8 @@ impl eframe::App for GgufApp {
             ui.horizontal(|ui| {
                 ui.label("Filter:");
                 ui.text_edit_singleline(&mut self.filter);
-                if ui.button("Apply").clicked() { /* filter applied via iterator below */ }
-                if ui.button("Clear filter").clicked() {
+                if ui.add(egui::Button::new("Apply")).clicked() { /* filter applied via iterator below */ }
+                if ui.add(egui::Button::new("Clear filter")).clicked() {
                     self.filter.clear();
                 }
             });
