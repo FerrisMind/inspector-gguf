@@ -1,74 +1,76 @@
-# gguf-inspector
+# inspector-gguf
 
-Мощный инструмент для инспекции файлов GGUF (GPT-Generated Unified Format) с графическим и командным интерфейсом.
+[Русская версия](README.ru.md) | English
 
-## Описание
+A powerful GGUF (GPT-Generated Unified Format) file inspection tool with graphical and command-line interface.
 
-`gguf-inspector` - это инструмент для анализа и просмотра метаданных файлов GGUF, используемых в машинном обучении. Он использует библиотеку `candle` для чтения файлов и предоставляет удобный интерфейс для просмотра информации о моделях.
+## Description
 
-## Возможности
+`inspector-gguf` is a tool for analyzing and viewing metadata of GGUF files used in machine learning. It uses the `candle` library for file reading and provides a convenient interface for viewing model information.
 
-- 🔍 Чтение и отображение метаданных GGUF файлов
-- 🖥️ Графический интерфейс на основе egui
-- 💾 Экспорт метаданных в JSON, CSV и YAML форматы
-- 📊 Анализ токенизатора и словаря модели
-- 🎨 Современный и интуитивно понятный интерфейс
+## Features
 
-## Установка
+- 🔍 Read and display GGUF file metadata
+- 🖥️ Graphical interface based on egui
+- 💾 Export metadata to JSON, CSV, and YAML formats
+- 📊 Tokenizer and model vocabulary analysis
+- 🎨 Modern and intuitive interface
 
-Из crates.io:
+## Installation
+
+From crates.io:
 
 ```bash
-cargo install gguf-inspector
+cargo install inspector-gguf
 ```
 
-Из исходников:
+From source:
 
 ```bash
-git clone https://github.com/Oxide-Lab/tools
-cd tools/gguf-inspector
+git clone https://github.com/FerrisMind/inspector-gguf
+cd inspector-gguf
 cargo build --release
 ```
 
-## Использование
+## Usage
 
-### Графический интерфейс
+### Graphical Interface
 
-Запустите приложение без аргументов для открытия GUI:
-
-```bash
-gguf-inspector
-```
-
-### Командная строка
-
-Укажите путь к GGUF файлу:
+Run the application without arguments to open the GUI:
 
 ```bash
-gguf-inspector <path/to/model.gguf>
+inspector-gguf
 ```
 
-## Примеры
+### Command Line
 
-Просмотр метаданных модели:
+Specify the path to a GGUF file:
 
 ```bash
-gguf-inspector models/llama-2-7b.gguf
+inspector-gguf <path/to/model.gguf>
 ```
 
-## Системные требования
+## Examples
 
-- Rust 1.70 или новее
-- Windows, macOS или Linux
+View model metadata:
 
-## Лицензия
+```bash
+inspector-gguf models/llama-2-7b.gguf
+```
 
-MIT License. См. файл [LICENSE](LICENSE) для деталей.
+## System Requirements
 
-## Участие в разработке
+- Rust 1.70 or newer
+- Windows, macOS, or Linux
 
-Приветствуются pull requests! Для серьезных изменений, пожалуйста, сначала откройте issue для обсуждения.
+## License
 
-## Автор
+MIT License. See [LICENSE](LICENSE) file for details.
 
-Oxide-Lab
+## Contributing
+
+Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
+
+## Author
+
+FerrisMind

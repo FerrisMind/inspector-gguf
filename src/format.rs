@@ -14,9 +14,17 @@ pub fn readable_value(v: &gguf_file::Value) -> String {
             if !arr.is_empty() && arr.iter().all(|el| matches!(el, gguf_file::Value::U8(_))) {
                 let bytes_len = arr.len();
                 if bytes_len <= 64 {
-                    let hex: String = arr.iter().map(|el| {
-                        if let gguf_file::Value::U8(b) = el { format!("{:02x}", b) } else { String::new() }
-                    }).collect::<Vec<_>>().join("");
+                    let hex: String = arr
+                        .iter()
+                        .map(|el| {
+                            if let gguf_file::Value::U8(b) = el {
+                                format!("{:02x}", b)
+                            } else {
+                                String::new()
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                        .join("");
                     return hex;
                 } else {
                     return format!("Blob(len={})", bytes_len);
@@ -26,13 +34,11 @@ pub fn readable_value(v: &gguf_file::Value) -> String {
             // Map small arrays to joined string, large arrays -> debug
             if arr.len() <= 64 {
                 let parts: Vec<String> = arr.iter().map(|el| format!("{:?}", el)).collect();
-                return format!("Array([{}])", parts.join(", "));
+                format!("Array([{}])", parts.join(", "))
             } else {
-                return format!("Array(len={})", arr.len());
+                format!("Array(len={})", arr.len())
             }
         }
         _ => format!("{:?}", v),
     }
 }
-
-

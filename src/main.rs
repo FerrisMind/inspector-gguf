@@ -74,7 +74,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         // Convert any variant to a readable string (second pass)
         for (k, v) in content.metadata.iter() {
-            let s = gguf_inspector::format::readable_value(v);
+            let s = inspector_gguf::format::readable_value(v);
             if let Ok(json) = serde_json::from_str::<serde_json::Value>(&s) {
                 map.insert(k.clone(), json);
             } else {
