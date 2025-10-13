@@ -1,4 +1,40 @@
 use candle::quantized::gguf_file;
+use std::fs::File;
+use std::io::Read;
+
+pub fn load_gguf_metadata_sync(
+    path: &std::path::Path,
+) -> Result<Vec<(String, String)>, Box<dyn std::error::Error>> {
+    puffin::profile_scope!("load_gguf_metadata_sync");
+
+    let mut f = {
+        puffin::profile_scope!("file_open");
+        File::open(path)?
+    };
+
+    let mut buf = Vec::new();
+    {
+        puffin::profile_scope!("file_reading");
+        f.read_to_end(&mut buf)?;
+    }
+
+    let content = {
+        puffin::profile_scope!("gguf_parsing");
+        let mut cursor = std::io::Cursor::new(&buf);
+        candle::quantized::gguf_file::Content::read(&mut cursor)?
+    };
+
+    let mut out = Vec::new();
+    {
+        puffin::profile_scope!("metadata_processing");
+        for (k, v) in content.metadata.iter() {
+            let s = readable_value(v);
+            out.push((k.clone(), s));
+        }
+    }
+
+    Ok(out)
+}
 
 pub fn readable_value(v: &gguf_file::Value) -> String {
     // Prefer the library-provided string representation when available
