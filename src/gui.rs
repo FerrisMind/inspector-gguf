@@ -12,12 +12,43 @@ use std::time::{Duration, Instant};
 // Type alias для сложного типа результата загрузки
 type LoadingResult = Arc<Mutex<Option<Result<Vec<(String, String)>, String>>>>;
 
+// Theme colors (Inspector Gadget palette)
+const INSPECTOR_BLUE: egui::Color32 = egui::Color32::from_rgb(30, 58, 138);
+const GADGET_YELLOW: egui::Color32 = egui::Color32::from_rgb(251, 191, 36);
+const TECH_GRAY: egui::Color32 = egui::Color32::from_rgb(148, 163, 184);
+#[allow(dead_code)]
+const DANGER_RED: egui::Color32 = egui::Color32::from_rgb(239, 68, 68);
+#[allow(dead_code)]
+const SUCCESS_GREEN: egui::Color32 = egui::Color32::from_rgb(16, 185, 129);
+
+fn apply_inspector_theme(ctx: &egui::Context) {
+    let mut style = (*ctx.style()).clone();
+
+    // Widgets
+    style.visuals.widgets.inactive.bg_fill = TECH_GRAY;
+    style.visuals.widgets.inactive.corner_radius = egui::CornerRadius::same(6);
+    style.visuals.widgets.active.bg_fill = INSPECTOR_BLUE;
+    style.visuals.widgets.active.corner_radius = egui::CornerRadius::same(6);
+    style.visuals.widgets.hovered.bg_fill = GADGET_YELLOW;
+
+    // Selection and accents
+    style.visuals.selection.bg_fill = GADGET_YELLOW;
+    style.visuals.override_text_color = Some(egui::Color32::WHITE);
+
+    // Slightly tinted panels
+    style.visuals.faint_bg_color = egui::Color32::from_rgb(20, 28, 36);
+
+    ctx.set_style(style);
+}
+
 pub struct GgufApp {
     pub metadata: Vec<(String, String)>,
     pub filter: String,
     pub loading: bool,
     pub loading_progress: Arc<Mutex<f32>>,
     pub loading_result: LoadingResult,
+    // theme applied flag
+    pub theme_applied: bool,
 }
 
 impl Default for GgufApp {
@@ -28,6 +59,7 @@ impl Default for GgufApp {
             loading: false,
             loading_progress: Arc::new(Mutex::new(0.0)),
             loading_result: Arc::new(Mutex::new(None)),
+            theme_applied: false,
         }
     }
 }
@@ -41,6 +73,11 @@ impl eframe::App for GgufApp {
         } else {
             0.0 // Значение по умолчанию если не удается получить доступ
         };
+
+        if !self.theme_applied {
+            apply_inspector_theme(ctx);
+            self.theme_applied = true;
+        }
 
         if self.loading {
             if current_progress < 0.0 {
@@ -63,17 +100,16 @@ impl eframe::App for GgufApp {
             }
         }
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("GGUF Metadata Viewer");
+        egui::SidePanel::left("inspector_toolkit")
+            .default_width(120.0)
+            .resizable(true)
+            .show(ctx, |ui| {
+                ui.heading("Mission\nControl");
+                ui.add_space(6.0);
 
-            // Показываем progressbar если идет загрузка
-            if self.loading {
-                ui.add(egui::ProgressBar::new(current_progress).show_percentage());
-                ui.label("Загрузка файла...");
-            }
-
-            ui.horizontal(|ui| {
-                if ui.button("Load GGUF File").clicked()
+                if ui
+                    .add_sized([100.0, 34.0], egui::Button::new("Load"))
+                    .clicked()
                     && !self.loading
                     && let Some(path) = FileDialog::new().pick_file()
                 {
@@ -81,35 +117,118 @@ impl eframe::App for GgufApp {
                     *self.loading_progress.lock().unwrap() = 0.0;
                     *self.loading_result.lock().unwrap() = None;
 
-                    // Клонируем Arc для передачи в поток
                     let progress_clone = Arc::clone(&self.loading_progress);
                     let result_clone = Arc::clone(&self.loading_result);
-
                     load_gguf_metadata_async(path, progress_clone, result_clone);
                 }
-                if ui.button("Clear").clicked() {
+
+                if ui
+                    .add_sized([100.0, 34.0], egui::Button::new("Clear"))
+                    .clicked()
+                {
                     self.metadata.clear();
                 }
 
                 ui.separator();
-                if ui.button("Open Profiler (Web)").clicked()
+                if ui
+                    .add_sized([100.0, 34.0], egui::Button::new("Profiler"))
+                    .clicked()
                     && let Err(e) = opener::open("http://127.0.0.1:8585")
                 {
                     eprintln!("Failed to open profiler: {}", e);
                 }
-                if ui.button("Export CSV").clicked()
+
+                ui.add_space(8.0);
+                ui.label("Export:");
+                if ui
+                    .add_sized([100.0, 28.0], egui::Button::new("CSV"))
+                    .clicked()
                     && let Some(path) = FileDialog::new().save_file()
                     && let Err(e) = export_csv(&self.metadata, &path)
                 {
                     eprintln!("CSV export failed: {}", e);
                 }
-                if ui.button("Export YAML").clicked()
+                if ui
+                    .add_sized([100.0, 28.0], egui::Button::new("YAML"))
+                    .clicked()
                     && let Some(path) = FileDialog::new().save_file()
                     && let Err(e) = export_yaml(&self.metadata, &path)
                 {
                     eprintln!("YAML export failed: {}", e);
                 }
+                if ui
+                    .add_sized([100.0, 28.0], egui::Button::new("MD"))
+                    .clicked()
+                    && let Some(path) = FileDialog::new().save_file()
+                    && let Err(e) = export_markdown_to_file(&self.metadata, &path)
+                {
+                    eprintln!("Markdown export failed: {}", e);
+                }
+                if ui
+                    .add_sized([100.0, 28.0], egui::Button::new("HTML"))
+                    .clicked()
+                    && let Some(path) = FileDialog::new().save_file()
+                    && let Err(e) = export_html_to_file(&self.metadata, &path)
+                {
+                    eprintln!("HTML export failed: {}", e);
+                }
+                if ui
+                    .add_sized([100.0, 28.0], egui::Button::new("PDF"))
+                    .clicked()
+                    && let Some(path) = FileDialog::new().save_file()
+                {
+                    let md = export_markdown(&self.metadata);
+                    if let Err(e) = export_pdf_from_markdown(&md, &path) {
+                        eprintln!("PDF export failed: {}", e);
+                    }
+                }
             });
+
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.heading("🔎 Inspector GGUF - Case Analysis Tool");
+
+            // Drop zone: поддержка drag-n-drop файлов
+            let dropped = ctx.input(|i| i.raw.dropped_files.clone());
+            if !dropped.is_empty() {
+                for df in dropped {
+                    if !self.loading {
+                        if let Some(path) = df.path {
+                            self.loading = true;
+                            *self.loading_progress.lock().unwrap() = 0.0;
+                            *self.loading_result.lock().unwrap() = None;
+                            let progress_clone = Arc::clone(&self.loading_progress);
+                            let result_clone = Arc::clone(&self.loading_result);
+                            load_gguf_metadata_async(path, progress_clone, result_clone);
+                        } else if let Some(bytes) = df.bytes {
+                            // Сохраняем во временный файл и загружаем
+                            let tmp = std::env::temp_dir().join(&df.name);
+                            match std::fs::write(&tmp, &*bytes) {
+                                Ok(_) => {
+                                    self.loading = true;
+                                    *self.loading_progress.lock().unwrap() = 0.0;
+                                    *self.loading_result.lock().unwrap() = None;
+                                    let progress_clone = Arc::clone(&self.loading_progress);
+                                    let result_clone = Arc::clone(&self.loading_result);
+                                    load_gguf_metadata_async(tmp, progress_clone, result_clone);
+                                }
+                                Err(e) => eprintln!("Failed to write dropped file: {}", e),
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Показываем progressbar если идет загрузка
+            if self.loading {
+                ui.add(
+                    egui::ProgressBar::new(current_progress)
+                        .show_percentage()
+                        .fill(INSPECTOR_BLUE),
+                );
+                ui.label("Загрузка файла...");
+            }
+
+            // Toolbar moved to Mission Control side panel
 
             ui.horizontal(|ui| {
                 ui.label("Filter:");
@@ -126,22 +245,27 @@ impl eframe::App for GgufApp {
                     .iter()
                     .filter(|(k, v)| k.contains(&self.filter) || v.contains(&self.filter))
                 {
-                    ui.label(format!("{}:", k));
-                    // If value looks binary (non-utf8 or too long), offer Base64 view
-                    if v.len() > 1024 || v.contains("\0") {
+                    ui.group(|ui| {
                         ui.horizontal(|ui| {
-                            ui.label("<binary> (long)");
-                            if ui.button("View Base64").clicked() {
-                                // show in separate window
-                                if let Err(e) = show_base64_dialog(v) {
-                                    eprintln!("Base64 view failed: {}", e);
+                            ui.vertical(|ui| {
+                                ui.label(egui::RichText::new(k).strong());
+                                ui.add_space(4.0);
+                                if v.len() > 1024 || v.contains("\0") {
+                                    ui.horizontal(|ui| {
+                                        ui.label("<binary> (long)");
+                                        if ui.button("View Base64").clicked()
+                                            && let Err(e) = show_base64_dialog(v)
+                                        {
+                                            eprintln!("Base64 view failed: {}", e);
+                                        }
+                                    });
+                                } else {
+                                    ui.label(v);
                                 }
-                            }
+                            });
                         });
-                    } else {
-                        ui.label(v);
-                    }
-                    ui.separator();
+                    });
+                    ui.add_space(6.0);
                 }
             });
         });
@@ -162,12 +286,114 @@ fn export_csv(
     metadata: &[(String, String)],
     path: &std::path::Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut wtr = csv::Writer::from_path(path)?;
+    let path = ensure_extension(path, "csv");
+    let mut wtr = csv::Writer::from_path(&path)?;
     wtr.write_record(["key", "value"])?;
     for (k, v) in metadata {
         wtr.write_record([k, v])?;
     }
     wtr.flush()?;
+    Ok(())
+}
+
+fn sanitize_for_markdown(s: &str) -> String {
+    // Убираем управляющие символы кроме перевода строки и таба
+    s.chars()
+        .map(|c| {
+            if c.is_control() && c != '\n' && c != '\t' {
+                ' '
+            } else {
+                c
+            }
+        })
+        .collect()
+}
+
+fn escape_markdown_text(s: &str) -> String {
+    // Escape characters that can break Markdown structure in headings
+    s.chars()
+        .map(|c| match c {
+            '*' | '_' | '`' | '[' | ']' | '<' | '>' | '#' => format!("\\{}", c),
+            other => other.to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join("")
+}
+
+fn ensure_extension(path: &std::path::Path, ext: &str) -> std::path::PathBuf {
+    if path.extension().is_none() {
+        let mut p = path.to_path_buf();
+        p.set_extension(ext);
+        p
+    } else {
+        path.to_path_buf()
+    }
+}
+
+fn export_markdown(metadata: &[(String, String)]) -> String {
+    let mut out = String::new();
+    out.push_str("# GGUF Metadata\n\n");
+    for (k, v) in metadata {
+        out.push_str(&format!("## {}\n\n", escape_markdown_text(k)));
+        out.push('\n');
+        if v.len() > 1024 || v.contains('\0') {
+            // Для больших/бинарных полей — Base64
+            let b64 = STANDARD.encode(v.as_bytes());
+            out.push_str("```base64\n");
+            out.push_str(&b64);
+            out.push_str("\n```\n\n");
+        } else {
+            let safe = sanitize_for_markdown(v);
+            out.push_str("```\n");
+            out.push_str(&safe.replace("```", "` ` `"));
+            out.push_str("\n```\n\n");
+        }
+    }
+    out
+}
+
+fn export_html(metadata: &[(String, String)]) -> Result<String, Box<dyn std::error::Error>> {
+    let md = export_markdown(metadata);
+    let parser = pulldown_cmark::Parser::new(&md);
+    let mut html_output = String::new();
+    pulldown_cmark::html::push_html(&mut html_output, parser);
+    Ok(html_output)
+}
+
+fn export_markdown_to_file(
+    metadata: &[(String, String)],
+    path: &std::path::Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let md = export_markdown(metadata);
+    let path = ensure_extension(path, "md");
+    std::fs::write(&path, md)?;
+    Ok(())
+}
+
+fn export_html_to_file(
+    metadata: &[(String, String)],
+    path: &std::path::Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let html = export_html(metadata)?;
+    let path = ensure_extension(path, "html");
+    std::fs::write(&path, html)?;
+    Ok(())
+}
+
+fn export_pdf_from_markdown(
+    md: &str,
+    out_path: &std::path::Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // Ensure .pdf extension and pass &str to markdown2pdf
+    let out_path = ensure_extension(out_path, "pdf");
+    let out_str = out_path.to_str().ok_or("output path is not valid UTF-8")?;
+    // markdown2pdf can error on unexpected tokens — provide sanitized markdown
+    let safe_md = sanitize_for_markdown(md);
+    markdown2pdf::parse_into_file(
+        safe_md.to_string(),
+        out_str,
+        markdown2pdf::config::ConfigSource::Default,
+    )?;
     Ok(())
 }
 
