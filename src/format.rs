@@ -36,7 +36,28 @@ pub fn load_gguf_metadata_sync(
     Ok(out)
 }
 
-pub fn readable_value(v: &gguf_file::Value) -> String {
+#[allow(clippy::collapsible_if)]
+pub fn readable_value_for_key(key: &str, v: &gguf_file::Value) -> String {
+    // Special handling for tokenizer.chat_template - decode as UTF-8 string instead of hex
+    if key == "tokenizer.chat_template" {
+        if let gguf_file::Value::Array(arr) = v {
+            if !arr.is_empty() && arr.iter().all(|el| matches!(el, gguf_file::Value::U8(_))) {
+                let bytes: Vec<u8> = arr.iter()
+                    .filter_map(|el| {
+                        if let gguf_file::Value::U8(b) = el {
+                            Some(*b)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                if let Ok(s) = String::from_utf8(bytes) {
+                    return s;
+                }
+            }
+        }
+    }
+
     // Prefer the library-provided string representation when available
     if let Ok(s) = v.to_string() {
         return s.to_string();
@@ -77,4 +98,8 @@ pub fn readable_value(v: &gguf_file::Value) -> String {
         }
         _ => format!("{:?}", v),
     }
+}
+
+pub fn readable_value(v: &gguf_file::Value) -> String {
+    readable_value_for_key("", v)
 }

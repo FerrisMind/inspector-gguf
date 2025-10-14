@@ -2,7 +2,7 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use eframe::egui;
 use egui::{FontData, FontDefinitions, FontFamily};
-use inspector_gguf::format::readable_value;
+use inspector_gguf::format::readable_value_for_key;
 use rfd::FileDialog;
 use std::collections::BTreeMap;
 use std::fs::File;
@@ -46,6 +46,9 @@ fn load_custom_font(ctx: &egui::Context) {
         .entry(FontFamily::Monospace)
         .or_default()
         .insert(0, "rubik_distressed".to_owned());
+
+    // Add Phosphor icons as fallback fonts
+    egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
 
     ctx.set_fonts(fonts);
 }
@@ -107,6 +110,10 @@ fn apply_inspector_theme(ctx: &egui::Context) {
         egui::TextStyle::Small,
         egui::FontId::new(12.0, egui::FontFamily::Proportional),
     );
+    text_styles.insert(
+        egui::TextStyle::Monospace,
+        egui::FontId::new(14.0, egui::FontFamily::Monospace),
+    );
     style.text_styles = text_styles;
 
     // Отступы и размеры
@@ -127,6 +134,10 @@ pub struct GgufApp {
     pub loading: bool,
     pub loading_progress: Arc<Mutex<f32>>,
     pub loading_result: LoadingResult,
+    pub show_settings: bool,
+    pub show_about: bool,
+    pub show_chat_template: bool,
+    pub chat_template_content: Option<String>,
 }
 
 impl Default for GgufApp {
@@ -137,6 +148,10 @@ impl Default for GgufApp {
             loading: false,
             loading_progress: Arc::new(Mutex::new(0.0)),
             loading_result: Arc::new(Mutex::new(None)),
+            show_settings: false,
+            show_about: false,
+            show_chat_template: false,
+            chat_template_content: None,
         }
     }
 }
@@ -228,7 +243,7 @@ impl eframe::App for GgufApp {
                             .size(12.0),
                     );
                     ui.label(
-                        egui::RichText::new("Inspector's Toolkit")
+                        egui::RichText::new(format!("{} Inspector's Toolkit", egui_phosphor::regular::WRENCH))
                             .color(TECH_GRAY)
                             .size(12.0),
                     );
@@ -236,7 +251,7 @@ impl eframe::App for GgufApp {
                 ui.add_space(8.0);
 
                 if ui
-                    .add_sized([100.0, 34.0], egui::Button::new("Load"))
+                    .add_sized([100.0, 34.0], egui::Button::new(egui::RichText::new(format!("{} Load", egui_phosphor::regular::FOLDER_OPEN)).size(16.0)))
                     .clicked()
                     && !self.loading
                     && let Some(path) = FileDialog::new().pick_file()
@@ -251,25 +266,18 @@ impl eframe::App for GgufApp {
                 }
 
                 if ui
-                    .add_sized([100.0, 34.0], egui::Button::new("Clear"))
+                    .add_sized([100.0, 34.0], egui::Button::new(egui::RichText::new(format!("{} Clear", egui_phosphor::regular::BROOM)).size(16.0)))
                     .clicked()
                 {
                     self.metadata.clear();
                 }
 
                 ui.separator();
-                if ui
-                    .add_sized([100.0, 34.0], egui::Button::new("Profiler"))
-                    .clicked()
-                    && let Err(e) = opener::open("http://127.0.0.1:8585")
-                {
-                    eprintln!("Failed to open profiler: {}", e);
-                }
 
                 ui.add_space(8.0);
-                ui.label(egui::RichText::new("Export:").color(TECH_GRAY));
+                ui.label(egui::RichText::new(format!("{} Export:", egui_phosphor::regular::EXPORT)).size(16.0).color(TECH_GRAY));
                 if ui
-                    .add_sized([100.0, 28.0], egui::Button::new("CSV"))
+                    .add_sized([100.0, 28.0], egui::Button::new(egui::RichText::new(format!("{} CSV", egui_phosphor::regular::FILE_CSV)).size(16.0)))
                     .clicked()
                     && let Some(path) = FileDialog::new().save_file()
                     && let Err(e) = export_csv(&self.metadata, &path)
@@ -277,7 +285,7 @@ impl eframe::App for GgufApp {
                     eprintln!("CSV export failed: {}", e);
                 }
                 if ui
-                    .add_sized([100.0, 28.0], egui::Button::new("YAML"))
+                    .add_sized([100.0, 28.0], egui::Button::new(egui::RichText::new(format!("{} YAML", egui_phosphor::regular::FILE_CODE)).size(16.0)))
                     .clicked()
                     && let Some(path) = FileDialog::new().save_file()
                     && let Err(e) = export_yaml(&self.metadata, &path)
@@ -285,7 +293,7 @@ impl eframe::App for GgufApp {
                     eprintln!("YAML export failed: {}", e);
                 }
                 if ui
-                    .add_sized([100.0, 28.0], egui::Button::new("MD"))
+                    .add_sized([100.0, 28.0], egui::Button::new(egui::RichText::new(format!("{} MD", egui_phosphor::regular::FILE_TEXT)).size(16.0)))
                     .clicked()
                     && let Some(path) = FileDialog::new().save_file()
                     && let Err(e) = export_markdown_to_file(&self.metadata, &path)
@@ -293,7 +301,7 @@ impl eframe::App for GgufApp {
                     eprintln!("Markdown export failed: {}", e);
                 }
                 if ui
-                    .add_sized([100.0, 28.0], egui::Button::new("HTML"))
+                    .add_sized([100.0, 28.0], egui::Button::new(egui::RichText::new(format!("{} HTML", egui_phosphor::regular::CODE)).size(16.0)))
                     .clicked()
                     && let Some(path) = FileDialog::new().save_file()
                     && let Err(e) = export_html_to_file(&self.metadata, &path)
@@ -301,7 +309,7 @@ impl eframe::App for GgufApp {
                     eprintln!("HTML export failed: {}", e);
                 }
                 if ui
-                    .add_sized([100.0, 28.0], egui::Button::new("PDF"))
+                    .add_sized([100.0, 28.0], egui::Button::new(egui::RichText::new(format!("{} PDF", egui_phosphor::regular::FILE_PDF)).size(16.0)))
                     .clicked()
                     && let Some(path) = FileDialog::new().save_file()
                 {
@@ -309,6 +317,24 @@ impl eframe::App for GgufApp {
                     if let Err(e) = export_pdf_from_markdown(&md, &path) {
                         eprintln!("PDF export failed: {}", e);
                     }
+                }
+
+                ui.add_space(16.0);
+
+                // Кнопка настроек
+                if ui
+                    .add_sized([100.0, 34.0], egui::Button::new(egui::RichText::new(format!("{} Settings", egui_phosphor::regular::GEAR)).size(16.0)))
+                    .clicked()
+                {
+                    self.show_settings = true;
+                }
+
+                // Кнопка "О программе"
+                if ui
+                    .add_sized([100.0, 34.0], egui::Button::new(egui::RichText::new(format!("{} About", egui_phosphor::regular::INFO)).size(16.0)))
+                    .clicked()
+                {
+                    self.show_about = true;
                 }
             });
 
@@ -366,8 +392,8 @@ impl eframe::App for GgufApp {
             ui.horizontal(|ui| {
                 ui.label(egui::RichText::new("Filter:").color(TECH_GRAY));
                 ui.text_edit_singleline(&mut self.filter);
-                if ui.add(egui::Button::new("Apply")).clicked() { /* filter applied via iterator below */ }
-                if ui.add(egui::Button::new("Clear filter")).clicked() {
+                if ui.add(egui::Button::new(format!("{} Apply", egui_phosphor::regular::CHECK))).clicked() { /* filter applied via iterator below */ }
+                if ui.add(egui::Button::new(format!("{} Clear filter", egui_phosphor::regular::X))).clicked() {
                     self.filter.clear();
                 }
             });
@@ -389,13 +415,19 @@ impl eframe::App for GgufApp {
                                     .strong(),
                             );
                             ui.add_space(4.0);
-                            if v.len() > 1024 || v.contains("\0") {
+                            if k == "tokenizer.chat_template" {
+                                // Специальная обработка для chat template - показываем кнопку View
+                                if ui.button(format!("{} View", egui_phosphor::regular::EYE)).clicked() {
+                                    self.chat_template_content = Some(v.clone());
+                                    self.show_chat_template = true;
+                                }
+                            } else if v.len() > 1024 || v.contains("\0") {
                                 ui.horizontal(|ui| {
                                     ui.label(
                                         egui::RichText::new("<binary> (long)")
                                             .color(egui::Color32::LIGHT_GRAY),
                                     );
-                                    if ui.button("View Base64").clicked()
+                                        if ui.button(format!("{} View Base64", egui_phosphor::regular::EYE)).clicked()
                                         && let Err(e) = show_base64_dialog(v)
                                     {
                                         eprintln!("Base64 view failed: {}", e);
@@ -420,6 +452,70 @@ impl eframe::App for GgufApp {
                 }
             });
         });
+
+        // Диалог настроек
+        if self.show_settings {
+            egui::Window::new("Settings")
+                .resizable(false)
+                .collapsible(false)
+                .show(ctx, |ui| {
+                    ui.label("Settings will be implemented here");
+                    if ui.button("Close").clicked() {
+                        self.show_settings = false;
+                    }
+                });
+        }
+
+        // Диалог "О программе"
+        if self.show_about {
+            egui::Window::new("About Inspector GGUF")
+                .resizable(false)
+                .collapsible(false)
+                .show(ctx, |ui| {
+                    ui.vertical(|ui| {
+                        ui.heading("Inspector GGUF");
+                        ui.label("Version: 0.1.0");
+                        ui.label("A powerful GGUF file inspection tool");
+                        ui.label("Built with Rust and egui");
+                        ui.add_space(8.0);
+                        ui.label("© 2025 FerrisMind");
+                        if ui.button("Close").clicked() {
+                            self.show_about = false;
+                        }
+                    });
+                });
+        }
+
+        // Диалог просмотра chat template
+        if self.show_chat_template {
+            egui::Window::new("Chat Template")
+                .resizable(true)
+                .collapsible(false)
+                .show(ctx, |ui| {
+                    ui.vertical(|ui| {
+                        ui.heading("Tokenizer Chat Template");
+                        ui.add_space(8.0);
+
+                        if let Some(content) = &self.chat_template_content {
+                            egui::ScrollArea::vertical().show(ui, |ui| {
+                                ui.label(
+                                    egui::RichText::new(content)
+                                        .monospace()
+                                        .color(egui::Color32::WHITE)
+                                );
+                            });
+                        } else {
+                            ui.label("No content available");
+                        }
+
+                        ui.add_space(8.0);
+                        if ui.button("Close").clicked() {
+                            self.show_chat_template = false;
+                            self.chat_template_content = None;
+                        }
+                    });
+                });
+        }
     }
 }
 
@@ -662,7 +758,7 @@ fn load_gguf_metadata_async(
         {
             puffin::profile_scope!("metadata_processing");
             for (k, v) in content.metadata.iter() {
-                let s = readable_value(v);
+                let s = readable_value_for_key(k, v);
                 out.push((k.clone(), s));
             }
         }
