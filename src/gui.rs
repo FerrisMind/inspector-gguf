@@ -1,8 +1,10 @@
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use eframe::egui;
+use egui::{FontData, FontDefinitions, FontFamily};
 use inspector_gguf::format::readable_value;
 use rfd::FileDialog;
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::Read;
 use std::sync::{Arc, Mutex};
@@ -21,28 +23,55 @@ const DANGER_RED: egui::Color32 = egui::Color32::from_rgb(239, 68, 68);
 #[allow(dead_code)]
 const SUCCESS_GREEN: egui::Color32 = egui::Color32::from_rgb(16, 185, 129);
 
+const SIDEBAR_WIDTH: f32 = 120.0;
+
+fn load_custom_font(ctx: &egui::Context) {
+    let mut fonts = FontDefinitions::default();
+
+    fonts.font_data.insert(
+        "rubik_distressed".to_owned(),
+        std::sync::Arc::new(FontData::from_static(include_bytes!(
+            "../assets/fonts/RubikDistressed-Regular.ttf"
+        ))),
+    );
+
+    fonts
+        .families
+        .entry(FontFamily::Proportional)
+        .or_default()
+        .insert(0, "rubik_distressed".to_owned());
+
+    fonts
+        .families
+        .entry(FontFamily::Monospace)
+        .or_default()
+        .insert(0, "rubik_distressed".to_owned());
+
+    ctx.set_fonts(fonts);
+}
+
 fn apply_inspector_theme(ctx: &egui::Context) {
     let mut style = (*ctx.style()).clone();
     let mut visuals = egui::Visuals::dark();
 
     // Единая цветовая схема Inspector Gadget для состояний кнопок:
-    // Неактивные: синий фон (INSPECTOR_BLUE) с белым текстом
+    // Неактивные: синий фон (INSPECTOR_BLUE) с жёлтым текстом (GADGET_YELLOW)
     visuals.widgets.inactive.bg_fill = INSPECTOR_BLUE;
     visuals.widgets.inactive.weak_bg_fill = INSPECTOR_BLUE;
     visuals.widgets.inactive.corner_radius = egui::CornerRadius::same(8);
-    visuals.widgets.inactive.fg_stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
+    visuals.widgets.inactive.fg_stroke = egui::Stroke::new(1.0, GADGET_YELLOW);
 
-    // При наведении: серый фон (TECH_GRAY) с белым текстом
+    // При наведении: серый фон (TECH_GRAY) с синим текстом (INSPECTOR_BLUE)
     visuals.widgets.hovered.bg_fill = TECH_GRAY;
     visuals.widgets.hovered.weak_bg_fill = TECH_GRAY;
     visuals.widgets.hovered.corner_radius = egui::CornerRadius::same(8);
-    visuals.widgets.hovered.fg_stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
+    visuals.widgets.hovered.fg_stroke = egui::Stroke::new(1.0, INSPECTOR_BLUE);
 
-    // При нажатии: жёлтый фон (GADGET_YELLOW) с чёрным текстом
+    // При нажатии: жёлтый фон (GADGET_YELLOW) с синим текстом (INSPECTOR_BLUE)
     visuals.widgets.active.bg_fill = GADGET_YELLOW;
     visuals.widgets.active.weak_bg_fill = GADGET_YELLOW;
     visuals.widgets.active.corner_radius = egui::CornerRadius::same(8);
-    visuals.widgets.active.fg_stroke = egui::Stroke::new(1.0, egui::Color32::BLACK);
+    visuals.widgets.active.fg_stroke = egui::Stroke::new(1.0, INSPECTOR_BLUE);
 
     // Accent цвета
     visuals.selection.bg_fill = GADGET_YELLOW;
@@ -59,6 +88,33 @@ fn apply_inspector_theme(ctx: &egui::Context) {
     visuals.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
     visuals.widgets.open.bg_fill = egui::Color32::from_rgb(51, 65, 85);
     visuals.widgets.open.fg_stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
+
+    // Типографика
+    let mut text_styles = BTreeMap::new();
+    text_styles.insert(
+        egui::TextStyle::Heading,
+        egui::FontId::new(16.0, egui::FontFamily::Proportional),
+    );
+    text_styles.insert(
+        egui::TextStyle::Body,
+        egui::FontId::new(14.0, egui::FontFamily::Proportional),
+    );
+    text_styles.insert(
+        egui::TextStyle::Button,
+        egui::FontId::new(14.0, egui::FontFamily::Proportional),
+    );
+    text_styles.insert(
+        egui::TextStyle::Small,
+        egui::FontId::new(12.0, egui::FontFamily::Proportional),
+    );
+    style.text_styles = text_styles;
+
+    // Отступы и размеры
+    style.spacing.item_spacing = egui::vec2(12.0, 12.0);
+    style.spacing.button_padding = egui::vec2(12.0, 8.0);
+    style.spacing.indent = 20.0;
+    style.spacing.slider_width = 160.0;
+    style.spacing.interact_size = egui::vec2(80.0, 32.0);
 
     // Применяем визуальные настройки через Style
     style.visuals = visuals;
@@ -88,6 +144,10 @@ impl Default for GgufApp {
 impl eframe::App for GgufApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         puffin::GlobalProfiler::lock().new_frame();
+
+        // Загружаем кастомный шрифт
+        load_custom_font(ctx);
+
         // Обновляем прогресс
         let current_progress = if let Ok(progress) = self.loading_progress.try_lock() {
             *progress
@@ -103,15 +163,23 @@ impl eframe::App for GgufApp {
             ui.horizontal(|ui| {
                 // Логотип Inspector Gadget (увеличительное стекло)
                 ui.add_space(8.0);
-                ui.label(egui::RichText::new("🔍").size(24.0));
+                ui.label(egui::RichText::new(egui_phosphor::regular::MAGNIFYING_GLASS).size(20.0));
                 ui.add_space(8.0);
-                
+
                 // Заголовок приложения
                 ui.vertical(|ui| {
-                    ui.heading(egui::RichText::new("Inspector GGUF").color(egui::Color32::WHITE).size(20.0));
-                    ui.label(egui::RichText::new("Case Analysis Tool").color(TECH_GRAY).size(12.0));
+                    ui.heading(
+                        egui::RichText::new("Inspector GGUF")
+                            .color(egui::Color32::WHITE)
+                            .size(16.0),
+                    );
+                    ui.label(
+                        egui::RichText::new("Case Analysis Tool")
+                            .color(GADGET_YELLOW)
+                            .size(12.0),
+                    );
                 });
-                
+
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     // Статус операции
                     if self.loading {
@@ -119,7 +187,9 @@ impl eframe::App for GgufApp {
                     } else if !self.metadata.is_empty() {
                         ui.label(egui::RichText::new("✅ Case Loaded").color(SUCCESS_GREEN));
                     } else {
-                        ui.label(egui::RichText::new("📋 Ready for Investigation").color(TECH_GRAY));
+                        ui.label(
+                            egui::RichText::new("📋 Ready for Investigation").color(GADGET_YELLOW),
+                        );
                     }
                 });
             });
@@ -147,13 +217,21 @@ impl eframe::App for GgufApp {
         }
 
         egui::SidePanel::left("inspector_toolkit")
-            .default_width(120.0)
-            .resizable(true)
+            .resizable(false)
+            .exact_width(SIDEBAR_WIDTH)
             .show(ctx, |ui| {
                 ui.vertical_centered(|ui| {
-                    ui.label(egui::RichText::new("🎯").size(20.0));
-                    ui.heading(egui::RichText::new("Mission Control").color(egui::Color32::WHITE).size(14.0));
-                    ui.label(egui::RichText::new("Inspector's Toolkit").color(TECH_GRAY).size(10.0));
+                    ui.label(egui::RichText::new(egui_phosphor::regular::TARGET).size(16.0));
+                    ui.heading(
+                        egui::RichText::new("Mission Control")
+                            .color(GADGET_YELLOW)
+                            .size(12.0),
+                    );
+                    ui.label(
+                        egui::RichText::new("Inspector's Toolkit")
+                            .color(TECH_GRAY)
+                            .size(12.0),
+                    );
                 });
                 ui.add_space(8.0);
 
@@ -189,7 +267,7 @@ impl eframe::App for GgufApp {
                 }
 
                 ui.add_space(8.0);
-                ui.label("Export:");
+                ui.label(egui::RichText::new("Export:").color(TECH_GRAY));
                 if ui
                     .add_sized([100.0, 28.0], egui::Button::new("CSV"))
                     .clicked()
@@ -234,10 +312,10 @@ impl eframe::App for GgufApp {
                 }
             });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default().frame(egui::Frame::central_panel(&ctx.style()).fill(egui::Color32::from_rgb(12, 18, 26))).show(ctx, |ui| {
             ui.vertical_centered(|ui| {
-                ui.label(egui::RichText::new("📊").size(20.0));
-                ui.heading(egui::RichText::new("Investigation Dashboard").color(egui::Color32::WHITE).size(18.0));
+                ui.label(egui::RichText::new(egui_phosphor::regular::CHART_BAR).size(16.0));
+                ui.heading(egui::RichText::new("Investigation Dashboard").color(GADGET_YELLOW).size(14.0));
                 ui.label(egui::RichText::new("Case Evidence & Analysis").color(TECH_GRAY).size(12.0));
             });
             ui.add_space(12.0);
@@ -280,13 +358,13 @@ impl eframe::App for GgufApp {
                         .show_percentage()
                         .fill(INSPECTOR_BLUE),
                 );
-                ui.label("Загрузка файла...");
+                ui.label(egui::RichText::new("Загрузка файла...").color(TECH_GRAY));
             }
 
             // Toolbar moved to Mission Control side panel
 
             ui.horizontal(|ui| {
-                ui.label("Filter:");
+                ui.label(egui::RichText::new("Filter:").color(TECH_GRAY));
                 ui.text_edit_singleline(&mut self.filter);
                 if ui.add(egui::Button::new("Apply")).clicked() { /* filter applied via iterator below */ }
                 if ui.add(egui::Button::new("Clear filter")).clicked() {
@@ -294,39 +372,58 @@ impl eframe::App for GgufApp {
                 }
             });
 
-            egui::ScrollArea::vertical().show(ui, |ui| {
+            egui::ScrollArea::vertical()
+                .auto_shrink([false; 2])
+                .show(ui, |ui| {
+                let mut first = true;
                 for (k, v) in self
                     .metadata
                     .iter()
                     .filter(|(k, v)| k.contains(&self.filter) || v.contains(&self.filter))
                 {
                     ui.group(|ui| {
-                        ui.horizontal(|ui| {
-                            ui.vertical(|ui| {
-                                ui.label(egui::RichText::new(k).strong());
-                                ui.add_space(4.0);
-                                if v.len() > 1024 || v.contains("\0") {
-                                    ui.horizontal(|ui| {
-                                        ui.label("<binary> (long)");
-                                        if ui.button("View Base64").clicked()
-                                            && let Err(e) = show_base64_dialog(v)
-                                        {
-                                            eprintln!("Base64 view failed: {}", e);
-                                        }
-                                    });
-                                } else {
-                                    ui.label(v);
-                                }
-                            });
+                        ui.vertical(|ui| {
+                            ui.label(
+                                egui::RichText::new(k)
+                                    .color(GADGET_YELLOW)
+                                    .strong(),
+                            );
+                            ui.add_space(4.0);
+                            if v.len() > 1024 || v.contains("\0") {
+                                ui.horizontal(|ui| {
+                                    ui.label(
+                                        egui::RichText::new("<binary> (long)")
+                                            .color(egui::Color32::LIGHT_GRAY),
+                                    );
+                                    if ui.button("View Base64").clicked()
+                                        && let Err(e) = show_base64_dialog(v)
+                                    {
+                                        eprintln!("Base64 view failed: {}", e);
+                                    }
+                                });
+                            } else {
+                                ui.label(
+                                    egui::RichText::new(v)
+                                        .color(egui::Color32::WHITE),
+                                );
+                            }
                         });
                     });
-                    ui.add_space(6.0);
+                    first = false;
+                    ui.add_space(8.0);
+                }
+                if first {
+                    ui.label(
+                        egui::RichText::new("Метаданные отсутствуют")
+                            .color(TECH_GRAY),
+                    );
                 }
             });
         });
     }
 }
 
+#[allow(dead_code)]
 fn show_base64_dialog(data: &str) -> Result<(), Box<dyn std::error::Error>> {
     // Encode string as base64 (assume original bytes are the utf-8 of data)
     let b64 = STANDARD.encode(data.as_bytes());
