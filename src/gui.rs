@@ -23,7 +23,35 @@ const DANGER_RED: egui::Color32 = egui::Color32::from_rgb(239, 68, 68);
 #[allow(dead_code)]
 const SUCCESS_GREEN: egui::Color32 = egui::Color32::from_rgb(16, 185, 129);
 
-const SIDEBAR_WIDTH: f32 = 120.0;
+// Адаптивные размеры для десктопа
+fn get_sidebar_width(ctx: &egui::Context) -> f32 {
+    let screen_size = ctx.screen_rect().width();
+    // Минимальная ширина - 120px, максимальная - 200px
+    // Для экранов шире 1920px используем 15% ширины экрана
+    if screen_size >= 1920.0 {
+        (screen_size * 0.15).clamp(120.0, 200.0)
+    } else if screen_size >= 1440.0 {
+        160.0 // Средний размер для 1440p
+    } else if screen_size >= 1024.0 {
+        140.0 // Для планшетов/маленьких десктопов
+    } else {
+        120.0 // Минимальный размер
+    }
+}
+
+fn get_adaptive_font_size(base_size: f32, ctx: &egui::Context) -> f32 {
+    let screen_size = ctx.screen_rect().width();
+    let scale_factor = if screen_size >= 1920.0 {
+        1.2 // Увеличиваем на 20% для 4K
+    } else if screen_size >= 1440.0 {
+        1.1 // Увеличиваем на 10% для 1440p
+    } else if screen_size >= 1024.0 {
+        1.0 // Стандартный размер
+    } else {
+        0.9 // Уменьшаем на 10% для маленьких экранов
+    };
+    base_size * scale_factor
+}
 
 fn load_custom_font(ctx: &egui::Context) {
     let mut fonts = FontDefinitions::default();
@@ -92,36 +120,52 @@ fn apply_inspector_theme(ctx: &egui::Context) {
     visuals.widgets.open.bg_fill = egui::Color32::from_rgb(51, 65, 85);
     visuals.widgets.open.fg_stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);
 
-    // Типографика
+    // Адаптивная типографика
     let mut text_styles = BTreeMap::new();
+    let heading_size = get_adaptive_font_size(16.0, ctx);
+    let body_size = get_adaptive_font_size(14.0, ctx);
+    let button_size = get_adaptive_font_size(14.0, ctx);
+    let small_size = get_adaptive_font_size(12.0, ctx);
+    let monospace_size = get_adaptive_font_size(14.0, ctx);
+
     text_styles.insert(
         egui::TextStyle::Heading,
-        egui::FontId::new(16.0, egui::FontFamily::Proportional),
+        egui::FontId::new(heading_size, egui::FontFamily::Proportional),
     );
     text_styles.insert(
         egui::TextStyle::Body,
-        egui::FontId::new(14.0, egui::FontFamily::Proportional),
+        egui::FontId::new(body_size, egui::FontFamily::Proportional),
     );
     text_styles.insert(
         egui::TextStyle::Button,
-        egui::FontId::new(14.0, egui::FontFamily::Proportional),
+        egui::FontId::new(button_size, egui::FontFamily::Proportional),
     );
     text_styles.insert(
         egui::TextStyle::Small,
-        egui::FontId::new(12.0, egui::FontFamily::Proportional),
+        egui::FontId::new(small_size, egui::FontFamily::Proportional),
     );
     text_styles.insert(
         egui::TextStyle::Monospace,
-        egui::FontId::new(14.0, egui::FontFamily::Monospace),
+        egui::FontId::new(monospace_size, egui::FontFamily::Monospace),
     );
     style.text_styles = text_styles;
 
-    // Отступы и размеры
-    style.spacing.item_spacing = egui::vec2(12.0, 12.0);
-    style.spacing.button_padding = egui::vec2(12.0, 8.0);
-    style.spacing.indent = 20.0;
-    style.spacing.slider_width = 160.0;
-    style.spacing.interact_size = egui::vec2(80.0, 32.0);
+    // Адаптивные отступы и размеры
+    let spacing_scale = if ctx.screen_rect().width() >= 1920.0 {
+        1.2
+    } else if ctx.screen_rect().width() >= 1440.0 {
+        1.1
+    } else if ctx.screen_rect().width() >= 1024.0 {
+        1.0
+    } else {
+        0.9
+    };
+
+    style.spacing.item_spacing = egui::vec2(12.0 * spacing_scale, 12.0 * spacing_scale);
+    style.spacing.button_padding = egui::vec2(12.0 * spacing_scale, 8.0 * spacing_scale);
+    style.spacing.indent = 20.0 * spacing_scale;
+    style.spacing.slider_width = 160.0 * spacing_scale;
+    style.spacing.interact_size = egui::vec2(80.0 * spacing_scale, 32.0 * spacing_scale);
 
     // Применяем визуальные настройки через Style
     style.visuals = visuals;
@@ -136,8 +180,7 @@ pub struct GgufApp {
     pub loading_result: LoadingResult,
     pub show_settings: bool,
     pub show_about: bool,
-    pub show_chat_template: bool,
-    pub chat_template_content: Option<String>,
+    pub selected_chat_template: Option<String>,
 }
 
 impl Default for GgufApp {
@@ -150,8 +193,7 @@ impl Default for GgufApp {
             loading_result: Arc::new(Mutex::new(None)),
             show_settings: false,
             show_about: false,
-            show_chat_template: false,
-            chat_template_content: None,
+            selected_chat_template: None,
         }
     }
 }
@@ -177,33 +219,33 @@ impl eframe::App for GgufApp {
         egui::TopBottomPanel::top("inspector_header").show(ctx, |ui| {
             ui.horizontal(|ui| {
                 // Логотип Inspector Gadget (увеличительное стекло)
-                ui.add_space(8.0);
-                ui.label(egui::RichText::new(egui_phosphor::regular::MAGNIFYING_GLASS).size(20.0));
-                ui.add_space(8.0);
+                ui.add_space(get_adaptive_font_size(8.0, ctx));
+                ui.label(egui::RichText::new(egui_phosphor::regular::MAGNIFYING_GLASS).size(get_adaptive_font_size(20.0, ctx)));
+                ui.add_space(get_adaptive_font_size(8.0, ctx));
 
                 // Заголовок приложения
                 ui.vertical(|ui| {
                     ui.heading(
                         egui::RichText::new("Inspector GGUF")
                             .color(egui::Color32::WHITE)
-                            .size(16.0),
+                            .size(get_adaptive_font_size(16.0, ctx)),
                     );
                     ui.label(
                         egui::RichText::new("Case Analysis Tool")
                             .color(GADGET_YELLOW)
-                            .size(12.0),
+                            .size(get_adaptive_font_size(12.0, ctx)),
                     );
                 });
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     // Статус операции
                     if self.loading {
-                        ui.label(egui::RichText::new("🔄 Scanning...").color(GADGET_YELLOW));
+                        ui.label(egui::RichText::new("🔄 Scanning...").color(GADGET_YELLOW).size(get_adaptive_font_size(14.0, ctx)));
                     } else if !self.metadata.is_empty() {
-                        ui.label(egui::RichText::new("✅ Case Loaded").color(SUCCESS_GREEN));
+                        ui.label(egui::RichText::new("✅ Case Loaded").color(SUCCESS_GREEN).size(get_adaptive_font_size(14.0, ctx)));
                     } else {
                         ui.label(
-                            egui::RichText::new("📋 Ready for Investigation").color(GADGET_YELLOW),
+                            egui::RichText::new("📋 Ready for Investigation").color(GADGET_YELLOW).size(get_adaptive_font_size(14.0, ctx)),
                         );
                     }
                 });
@@ -233,25 +275,45 @@ impl eframe::App for GgufApp {
 
         egui::SidePanel::left("inspector_toolkit")
             .resizable(false)
-            .exact_width(SIDEBAR_WIDTH)
+            .exact_width(get_sidebar_width(ctx))
             .show(ctx, |ui| {
                 ui.vertical_centered(|ui| {
-                    ui.label(egui::RichText::new(egui_phosphor::regular::TARGET).size(16.0));
+                    ui.label(egui::RichText::new(egui_phosphor::regular::TARGET).size(get_adaptive_font_size(16.0, ctx)));
                     ui.heading(
                         egui::RichText::new("Mission Control")
                             .color(GADGET_YELLOW)
-                            .size(12.0),
+                            .size(get_adaptive_font_size(12.0, ctx)),
                     );
                     ui.label(
-                        egui::RichText::new(format!("{} Inspector's Toolkit", egui_phosphor::regular::WRENCH))
-                            .color(TECH_GRAY)
-                            .size(12.0),
+                        egui::RichText::new(format!(
+                            "{} Inspector's Toolkit",
+                            egui_phosphor::regular::WRENCH
+                        ))
+                        .color(TECH_GRAY)
+                        .size(get_adaptive_font_size(12.0, ctx)),
                     );
                 });
                 ui.add_space(8.0);
 
+                // Добавляем прокрутку для остального содержимого
+                egui::ScrollArea::vertical()
+                    .auto_shrink([false; 2])
+                    .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysHidden)
+                    .show(ui, |ui| {
+
+                let button_width = get_sidebar_width(ctx) - 20.0; // Отступы от краев
+                let button_height = get_adaptive_font_size(34.0, ctx);
                 if ui
-                    .add_sized([100.0, 34.0], egui::Button::new(egui::RichText::new(format!("{} Load", egui_phosphor::regular::FOLDER_OPEN)).size(16.0)))
+                    .add_sized(
+                        [button_width, button_height],
+                        egui::Button::new(
+                            egui::RichText::new(format!(
+                                "{} Load",
+                                egui_phosphor::regular::FOLDER_OPEN
+                            ))
+                            .size(get_adaptive_font_size(16.0, ctx)),
+                        ),
+                    )
                     .clicked()
                     && !self.loading
                     && let Some(path) = FileDialog::new().pick_file()
@@ -266,7 +328,13 @@ impl eframe::App for GgufApp {
                 }
 
                 if ui
-                    .add_sized([100.0, 34.0], egui::Button::new(egui::RichText::new(format!("{} Clear", egui_phosphor::regular::BROOM)).size(16.0)))
+                    .add_sized(
+                        [button_width, button_height],
+                        egui::Button::new(
+                            egui::RichText::new(format!("{} Clear", egui_phosphor::regular::BROOM))
+                                .size(get_adaptive_font_size(16.0, ctx)),
+                        ),
+                    )
                     .clicked()
                 {
                     self.metadata.clear();
@@ -275,9 +343,23 @@ impl eframe::App for GgufApp {
                 ui.separator();
 
                 ui.add_space(8.0);
-                ui.label(egui::RichText::new(format!("{} Export:", egui_phosphor::regular::EXPORT)).size(16.0).color(TECH_GRAY));
+                ui.label(
+                    egui::RichText::new(format!("{} Export:", egui_phosphor::regular::EXPORT))
+                        .size(get_adaptive_font_size(16.0, ctx))
+                        .color(TECH_GRAY),
+                );
+                let small_button_height = get_adaptive_font_size(28.0, ctx);
                 if ui
-                    .add_sized([100.0, 28.0], egui::Button::new(egui::RichText::new(format!("{} CSV", egui_phosphor::regular::FILE_CSV)).size(16.0)))
+                    .add_sized(
+                        [button_width, small_button_height],
+                        egui::Button::new(
+                            egui::RichText::new(format!(
+                                "{} CSV",
+                                egui_phosphor::regular::FILE_CSV
+                            ))
+                            .size(get_adaptive_font_size(16.0, ctx)),
+                        ),
+                    )
                     .clicked()
                     && let Some(path) = FileDialog::new().save_file()
                     && let Err(e) = export_csv(&self.metadata, &path)
@@ -285,7 +367,16 @@ impl eframe::App for GgufApp {
                     eprintln!("CSV export failed: {}", e);
                 }
                 if ui
-                    .add_sized([100.0, 28.0], egui::Button::new(egui::RichText::new(format!("{} YAML", egui_phosphor::regular::FILE_CODE)).size(16.0)))
+                    .add_sized(
+                        [button_width, small_button_height],
+                        egui::Button::new(
+                            egui::RichText::new(format!(
+                                "{} YAML",
+                                egui_phosphor::regular::FILE_CODE
+                            ))
+                            .size(get_adaptive_font_size(16.0, ctx)),
+                        ),
+                    )
                     .clicked()
                     && let Some(path) = FileDialog::new().save_file()
                     && let Err(e) = export_yaml(&self.metadata, &path)
@@ -293,7 +384,16 @@ impl eframe::App for GgufApp {
                     eprintln!("YAML export failed: {}", e);
                 }
                 if ui
-                    .add_sized([100.0, 28.0], egui::Button::new(egui::RichText::new(format!("{} MD", egui_phosphor::regular::FILE_TEXT)).size(16.0)))
+                    .add_sized(
+                        [button_width, small_button_height],
+                        egui::Button::new(
+                            egui::RichText::new(format!(
+                                "{} MD",
+                                egui_phosphor::regular::FILE_TEXT
+                            ))
+                            .size(get_adaptive_font_size(16.0, ctx)),
+                        ),
+                    )
                     .clicked()
                     && let Some(path) = FileDialog::new().save_file()
                     && let Err(e) = export_markdown_to_file(&self.metadata, &path)
@@ -301,7 +401,13 @@ impl eframe::App for GgufApp {
                     eprintln!("Markdown export failed: {}", e);
                 }
                 if ui
-                    .add_sized([100.0, 28.0], egui::Button::new(egui::RichText::new(format!("{} HTML", egui_phosphor::regular::CODE)).size(16.0)))
+                    .add_sized(
+                        [button_width, small_button_height],
+                        egui::Button::new(
+                            egui::RichText::new(format!("{} HTML", egui_phosphor::regular::CODE))
+                                .size(get_adaptive_font_size(16.0, ctx)),
+                        ),
+                    )
                     .clicked()
                     && let Some(path) = FileDialog::new().save_file()
                     && let Err(e) = export_html_to_file(&self.metadata, &path)
@@ -309,7 +415,16 @@ impl eframe::App for GgufApp {
                     eprintln!("HTML export failed: {}", e);
                 }
                 if ui
-                    .add_sized([100.0, 28.0], egui::Button::new(egui::RichText::new(format!("{} PDF", egui_phosphor::regular::FILE_PDF)).size(16.0)))
+                    .add_sized(
+                        [button_width, small_button_height],
+                        egui::Button::new(
+                            egui::RichText::new(format!(
+                                "{} PDF",
+                                egui_phosphor::regular::FILE_PDF
+                            ))
+                            .size(get_adaptive_font_size(16.0, ctx)),
+                        ),
+                    )
                     .clicked()
                     && let Some(path) = FileDialog::new().save_file()
                 {
@@ -323,7 +438,16 @@ impl eframe::App for GgufApp {
 
                 // Кнопка настроек
                 if ui
-                    .add_sized([100.0, 34.0], egui::Button::new(egui::RichText::new(format!("{} Settings", egui_phosphor::regular::GEAR)).size(16.0)))
+                    .add_sized(
+                        [button_width, button_height],
+                        egui::Button::new(
+                            egui::RichText::new(format!(
+                                "{} Settings",
+                                egui_phosphor::regular::GEAR
+                            ))
+                            .size(get_adaptive_font_size(16.0, ctx)),
+                        ),
+                    )
                     .clicked()
                 {
                     self.show_settings = true;
@@ -331,136 +455,258 @@ impl eframe::App for GgufApp {
 
                 // Кнопка "О программе"
                 if ui
-                    .add_sized([100.0, 34.0], egui::Button::new(egui::RichText::new(format!("{} About", egui_phosphor::regular::INFO)).size(16.0)))
+                    .add_sized(
+                        [button_width, button_height],
+                        egui::Button::new(
+                            egui::RichText::new(format!("{} About", egui_phosphor::regular::INFO))
+                                .size(get_adaptive_font_size(16.0, ctx)),
+                        ),
+                    )
                     .clicked()
                 {
                     self.show_about = true;
                 }
+                // Добавляем дополнительный отступ снизу для прокрутки
+                ui.allocate_space(egui::vec2(0.0, get_adaptive_font_size(4.0, ctx)));
+                });
             });
 
-        egui::CentralPanel::default().frame(egui::Frame::central_panel(&ctx.style()).fill(egui::Color32::from_rgb(12, 18, 26))).show(ctx, |ui| {
-            ui.vertical_centered(|ui| {
-                ui.label(egui::RichText::new(egui_phosphor::regular::CHART_BAR).size(16.0));
-                ui.heading(egui::RichText::new("Investigation Dashboard").color(GADGET_YELLOW).size(14.0));
-                ui.label(egui::RichText::new("Case Evidence & Analysis").color(TECH_GRAY).size(12.0));
-            });
-            ui.add_space(12.0);
+        // Правая панель для chat template
+        if self.selected_chat_template.is_some() {
+            let right_panel_width = if ctx.screen_rect().width() >= 1920.0 {
+                500.0
+            } else if ctx.screen_rect().width() >= 1440.0 {
+                450.0
+            } else {
+                400.0
+            };
+            // Адаптивная минимальная ширина панели
+            let right_panel_min_width = if ctx.screen_rect().width() >= 1920.0 {
+                450.0 // На больших экранах минимум 450px
+            } else if ctx.screen_rect().width() >= 1440.0 {
+                400.0 // На средних экранах минимум 400px
+            } else if ctx.screen_rect().width() >= 1024.0 {
+                350.0 // На планшетах минимум 350px
+            } else {
+                300.0 // На маленьких экранах минимум 300px
+            };
+            egui::SidePanel::right("chat_template_panel")
+                .resizable(true)
+                .default_width(right_panel_width)
+                .min_width(right_panel_min_width)
+                .show(ctx, |ui| {
+                    ui.vertical(|ui| {
+                        ui.add_space(4.0); // Отступ сверху для заголовка
 
-            // Drop zone: поддержка drag-n-drop файлов
-            let dropped = ctx.input(|i| i.raw.dropped_files.clone());
-            if !dropped.is_empty() {
-                for df in dropped {
-                    if !self.loading {
-                        if let Some(path) = df.path {
-                            self.loading = true;
-                            *self.loading_progress.lock().unwrap() = 0.0;
-                            *self.loading_result.lock().unwrap() = None;
-                            let progress_clone = Arc::clone(&self.loading_progress);
-                            let result_clone = Arc::clone(&self.loading_result);
-                            load_gguf_metadata_async(path, progress_clone, result_clone);
-                        } else if let Some(bytes) = df.bytes {
-                            // Сохраняем во временный файл и загружаем
-                            let tmp = std::env::temp_dir().join(&df.name);
-                            match std::fs::write(&tmp, &*bytes) {
-                                Ok(_) => {
-                                    self.loading = true;
-                                    *self.loading_progress.lock().unwrap() = 0.0;
-                                    *self.loading_result.lock().unwrap() = None;
-                                    let progress_clone = Arc::clone(&self.loading_progress);
-                                    let result_clone = Arc::clone(&self.loading_result);
-                                    load_gguf_metadata_async(tmp, progress_clone, result_clone);
+                        // Заголовок с кнопками Copy и X
+                        ui.horizontal(|ui| {
+                            // Кнопка Copy слева
+                            #[allow(clippy::collapsible_if)]
+                            if ui.button(egui_phosphor::regular::COPY).clicked() {
+                                if let Some(content) = &self.selected_chat_template {
+                                    ctx.copy_text(content.clone());
                                 }
-                                Err(e) => eprintln!("Failed to write dropped file: {}", e),
+                            }
+
+                            // Центрируем заголовок в оставшемся пространстве
+                            let available_size = ui.available_size_before_wrap();
+                            ui.allocate_ui_with_layout(
+                                available_size,
+                                egui::Layout::left_to_right(egui::Align::Center),
+                                |ui| {
+                            ui.heading(
+                                egui::RichText::new("Tokenizer Chat Template").color(GADGET_YELLOW).size(get_adaptive_font_size(16.0, ctx)),
+                            );
+                                },
+                            );
+
+                            // Кнопка X прижата к правому краю
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                if ui.button(egui_phosphor::regular::X).clicked() {
+                                    self.selected_chat_template = None;
+                                }
+                            });
+                        });
+                        ui.add_space(8.0);
+
+                        // ScrollArea для содержимого
+                        if let Some(content) = &self.selected_chat_template {
+                            egui::ScrollArea::vertical().show(ui, |ui| {
+                                ui.label(egui::RichText::new(content).monospace().color(TECH_GRAY).size(get_adaptive_font_size(12.0, ctx)));
+                            });
+                        }
+                    });
+                });
+        }
+
+        egui::CentralPanel::default()
+            .frame(
+                egui::Frame::central_panel(&ctx.style()).fill(egui::Color32::from_rgb(12, 18, 26)),
+            )
+            .show(ctx, |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.label(egui::RichText::new(egui_phosphor::regular::CHART_BAR).size(get_adaptive_font_size(16.0, ctx)));
+                    ui.heading(
+                        egui::RichText::new("Investigation Dashboard")
+                            .color(GADGET_YELLOW)
+                            .size(get_adaptive_font_size(14.0, ctx)),
+                    );
+                    ui.label(
+                        egui::RichText::new("Case Evidence & Analysis")
+                            .color(TECH_GRAY)
+                            .size(get_adaptive_font_size(12.0, ctx)),
+                    );
+                });
+                ui.add_space(get_adaptive_font_size(12.0, ctx));
+
+                // Drop zone: поддержка drag-n-drop файлов
+                let dropped = ctx.input(|i| i.raw.dropped_files.clone());
+                if !dropped.is_empty() {
+                    for df in dropped {
+                        if !self.loading {
+                            if let Some(path) = df.path {
+                                self.loading = true;
+                                *self.loading_progress.lock().unwrap() = 0.0;
+                                *self.loading_result.lock().unwrap() = None;
+                                let progress_clone = Arc::clone(&self.loading_progress);
+                                let result_clone = Arc::clone(&self.loading_result);
+                                load_gguf_metadata_async(path, progress_clone, result_clone);
+                            } else if let Some(bytes) = df.bytes {
+                                // Сохраняем во временный файл и загружаем
+                                let tmp = std::env::temp_dir().join(&df.name);
+                                match std::fs::write(&tmp, &*bytes) {
+                                    Ok(_) => {
+                                        self.loading = true;
+                                        *self.loading_progress.lock().unwrap() = 0.0;
+                                        *self.loading_result.lock().unwrap() = None;
+                                        let progress_clone = Arc::clone(&self.loading_progress);
+                                        let result_clone = Arc::clone(&self.loading_result);
+                                        load_gguf_metadata_async(tmp, progress_clone, result_clone);
+                                    }
+                                    Err(e) => eprintln!("Failed to write dropped file: {}", e),
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            // Показываем progressbar если идет загрузка
-            if self.loading {
-                ui.add(
-                    egui::ProgressBar::new(current_progress)
-                        .show_percentage()
-                        .fill(INSPECTOR_BLUE),
-                );
-                ui.label(egui::RichText::new("Загрузка файла...").color(TECH_GRAY));
-            }
-
-            // Toolbar moved to Mission Control side panel
-
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("Filter:").color(TECH_GRAY));
-                ui.text_edit_singleline(&mut self.filter);
-                if ui.add(egui::Button::new(format!("{} Apply", egui_phosphor::regular::CHECK))).clicked() { /* filter applied via iterator below */ }
-                if ui.add(egui::Button::new(format!("{} Clear filter", egui_phosphor::regular::X))).clicked() {
-                    self.filter.clear();
+                // Показываем progressbar если идет загрузка
+                if self.loading {
+                    ui.add(
+                        egui::ProgressBar::new(current_progress)
+                            .show_percentage()
+                            .fill(INSPECTOR_BLUE),
+                    );
+                    ui.label(egui::RichText::new("Загрузка файла...").color(TECH_GRAY).size(get_adaptive_font_size(14.0, ctx)));
                 }
-            });
 
-            egui::ScrollArea::vertical()
-                .auto_shrink([false; 2])
-                .show(ui, |ui| {
-                let mut first = true;
-                for (k, v) in self
-                    .metadata
-                    .iter()
-                    .filter(|(k, v)| k.contains(&self.filter) || v.contains(&self.filter))
-                {
-                    ui.group(|ui| {
-                        ui.vertical(|ui| {
-                            ui.label(
-                                egui::RichText::new(k)
-                                    .color(GADGET_YELLOW)
-                                    .strong(),
-                            );
-                            ui.add_space(4.0);
-                            if k == "tokenizer.chat_template" {
-                                // Специальная обработка для chat template - показываем кнопку View
-                                if ui.button(format!("{} View", egui_phosphor::regular::EYE)).clicked() {
-                                    self.chat_template_content = Some(v.clone());
-                                    self.show_chat_template = true;
-                                }
-                            } else if v.len() > 1024 || v.contains("\0") {
-                                ui.horizontal(|ui| {
-                                    ui.label(
-                                        egui::RichText::new("<binary> (long)")
-                                            .color(egui::Color32::LIGHT_GRAY),
-                                    );
-                                        if ui.button(format!("{} View Base64", egui_phosphor::regular::EYE)).clicked()
-                                        && let Err(e) = show_base64_dialog(v)
-                                    {
-                                        eprintln!("Base64 view failed: {}", e);
+                // Toolbar moved to Mission Control side panel
+
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("Filter:").color(TECH_GRAY).size(get_adaptive_font_size(14.0, ctx)));
+
+                    // Динамическая ширина поля фильтра в зависимости от размера окна
+                    let available_width = ui.available_width();
+                    let label_width = get_adaptive_font_size(50.0, ctx); // Примерная ширина лейбла "Filter:"
+                    let button_width = get_adaptive_font_size(120.0, ctx); // Фиксированная ширина кнопки
+
+                    // Рассчитываем ширину поля фильтра с учетом всех элементов
+                    let total_reserved_width = label_width + if !self.filter.is_empty() { button_width } else { 0.0 };
+                    let filter_width = (available_width - total_reserved_width).clamp(100.0, 400.0);
+
+                    ui.add_sized(
+                        [filter_width, get_adaptive_font_size(20.0, ctx)],
+                        egui::TextEdit::singleline(&mut self.filter)
+                    );
+
+                    // Кнопка Clear filter показывается только когда есть текст в фильтре
+                    if !self.filter.is_empty() {
+                        ui.add_sized(
+                            [button_width, get_adaptive_font_size(20.0, ctx)],
+                            egui::Button::new(format!(
+                                "{} Clear",
+                                egui_phosphor::regular::X
+                            ))
+                        ).clicked().then(|| {
+                            self.filter.clear();
+                        });
+                    }
+                });
+
+                egui::ScrollArea::vertical()
+                    .auto_shrink([false; 2])
+                    .show(ui, |ui| {
+                        let mut first = true;
+                        for (k, v) in self
+                            .metadata
+                            .iter()
+                            .filter(|(k, v)| k.contains(&self.filter) || v.contains(&self.filter))
+                        {
+                            ui.group(|ui| {
+                                ui.vertical(|ui| {
+                                    ui.label(egui::RichText::new(k).color(GADGET_YELLOW).strong().size(get_adaptive_font_size(14.0, ctx)));
+                                    ui.add_space(get_adaptive_font_size(4.0, ctx));
+                                    if k == "tokenizer.chat_template" {
+                                        // Специальная обработка для chat template - показываем кнопку Select
+                                        if ui
+                                            .button(format!(
+                                                "{} Select",
+                                                egui_phosphor::regular::CURSOR
+                                            ))
+                                            .clicked()
+                                        {
+                                            self.selected_chat_template = Some(v.clone());
+                                        }
+                                    } else if v.len() > 1024 || v.contains("\0") {
+                                        ui.horizontal(|ui| {
+                                            ui.label(
+                                                egui::RichText::new("<binary> (long)")
+                                                    .color(egui::Color32::LIGHT_GRAY)
+                                                    .size(get_adaptive_font_size(12.0, ctx)),
+                                            );
+                                            if ui
+                                                .button(format!(
+                                                    "{} View Base64",
+                                                    egui_phosphor::regular::EYE
+                                                ))
+                                                .clicked()
+                                                && let Err(e) = show_base64_dialog(v)
+                                            {
+                                                eprintln!("Base64 view failed: {}", e);
+                                            }
+                                        });
+                                    } else {
+                                        ui.label(
+                                            egui::RichText::new(v).color(egui::Color32::WHITE).size(get_adaptive_font_size(12.0, ctx)),
+                                        );
                                     }
                                 });
-                            } else {
-                                ui.label(
-                                    egui::RichText::new(v)
-                                        .color(egui::Color32::WHITE),
-                                );
-                            }
-                        });
+                            });
+                            first = false;
+                            ui.add_space(get_adaptive_font_size(8.0, ctx));
+                        }
+                        if first {
+                            ui.label(
+                                egui::RichText::new("Метаданные отсутствуют").color(TECH_GRAY).size(get_adaptive_font_size(14.0, ctx)),
+                            );
+                        }
                     });
-                    first = false;
-                    ui.add_space(8.0);
-                }
-                if first {
-                    ui.label(
-                        egui::RichText::new("Метаданные отсутствуют")
-                            .color(TECH_GRAY),
-                    );
-                }
             });
-        });
 
         // Диалог настроек
         if self.show_settings {
+            let window_size = if ctx.screen_rect().width() >= 1440.0 {
+                [500.0, 400.0]
+            } else {
+                [400.0, 300.0]
+            };
             egui::Window::new("Settings")
                 .resizable(false)
                 .collapsible(false)
+                .default_size(window_size)
                 .show(ctx, |ui| {
-                    ui.label("Settings will be implemented here");
-                    if ui.button("Close").clicked() {
+                    ui.label(egui::RichText::new("Settings will be implemented here").size(get_adaptive_font_size(14.0, ctx)));
+                    if ui.button(egui::RichText::new("Close").size(get_adaptive_font_size(14.0, ctx))).clicked() {
                         self.show_settings = false;
                     }
                 });
@@ -468,50 +714,25 @@ impl eframe::App for GgufApp {
 
         // Диалог "О программе"
         if self.show_about {
+            let window_size = if ctx.screen_rect().width() >= 1440.0 {
+                [500.0, 400.0]
+            } else {
+                [400.0, 300.0]
+            };
             egui::Window::new("About Inspector GGUF")
                 .resizable(false)
                 .collapsible(false)
+                .default_size(window_size)
                 .show(ctx, |ui| {
                     ui.vertical(|ui| {
-                        ui.heading("Inspector GGUF");
-                        ui.label("Version: 0.1.0");
-                        ui.label("A powerful GGUF file inspection tool");
-                        ui.label("Built with Rust and egui");
-                        ui.add_space(8.0);
-                        ui.label("© 2025 FerrisMind");
-                        if ui.button("Close").clicked() {
+                        ui.heading(egui::RichText::new("Inspector GGUF").size(get_adaptive_font_size(18.0, ctx)));
+                        ui.label(egui::RichText::new("Version: 0.1.0").size(get_adaptive_font_size(14.0, ctx)));
+                        ui.label(egui::RichText::new("A powerful GGUF file inspection tool").size(get_adaptive_font_size(14.0, ctx)));
+                        ui.label(egui::RichText::new("Built with Rust and egui").size(get_adaptive_font_size(14.0, ctx)));
+                        ui.add_space(get_adaptive_font_size(8.0, ctx));
+                        ui.label(egui::RichText::new("© 2025 FerrisMind").size(get_adaptive_font_size(12.0, ctx)));
+                        if ui.button(egui::RichText::new("Close").size(get_adaptive_font_size(14.0, ctx))).clicked() {
                             self.show_about = false;
-                        }
-                    });
-                });
-        }
-
-        // Диалог просмотра chat template
-        if self.show_chat_template {
-            egui::Window::new("Chat Template")
-                .resizable(true)
-                .collapsible(false)
-                .show(ctx, |ui| {
-                    ui.vertical(|ui| {
-                        ui.heading("Tokenizer Chat Template");
-                        ui.add_space(8.0);
-
-                        if let Some(content) = &self.chat_template_content {
-                            egui::ScrollArea::vertical().show(ui, |ui| {
-                                ui.label(
-                                    egui::RichText::new(content)
-                                        .monospace()
-                                        .color(egui::Color32::WHITE)
-                                );
-                            });
-                        } else {
-                            ui.label("No content available");
-                        }
-
-                        ui.add_space(8.0);
-                        if ui.button("Close").clicked() {
-                            self.show_chat_template = false;
-                            self.chat_template_content = None;
                         }
                     });
                 });

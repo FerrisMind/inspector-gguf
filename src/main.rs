@@ -188,7 +188,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     if opt.gui {
-        let native_options = eframe::NativeOptions::default();
+        let mut native_options = eframe::NativeOptions::default();
+        // Устанавливаем минимальный размер окна 640x360
+        native_options.viewport.min_inner_size = Some(egui::vec2(640.0, 360.0));
         let _ = eframe::run_native(
             "Inspector GGUF",
             native_options,
