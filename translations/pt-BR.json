@@ -1,0 +1,87 @@
+{
+    "app": {
+        "title": "Inspector GGUF",
+        "version": "Versão"
+    },
+    "buttons": {
+        "load": "Carregar",
+        "clear": "Limpar",
+        "export": "Exportar",
+        "settings": "Configurações",
+        "about": "Sobre",
+        "close": "Fechar",
+        "copy": "Copiar",
+        "view": "Visualizar",
+        "filter": "Filtro"
+    },
+    "menu": {
+        "file": "Arquivo",
+        "export": "Exportar",
+        "settings": "Configurações",
+        "help": "Ajuda"
+    },
+    "export": {
+        "csv": "CSV",
+        "yaml": "YAML",
+        "markdown": "MD",
+        "html": "HTML",
+        "pdf": "PDF"
+    },
+    "messages": {
+        "loading": "Carregando arquivo...",
+        "no_metadata": "Metadados não disponíveis",
+        "export_failed": "Falha na exportação: {0}",
+        "file_open_error": "Falha ao abrir arquivo: {0}",
+        "parsing_error": "Erro de análise GGUF: {0}",
+        "checking_updates": "Verificando atualizações...",
+        "update_available": "Nova versão disponível: {0}",
+        "up_to_date": "Você tem a versão mais recente",
+        "update_error": "Erro na verificação: {0}"
+    },
+    "settings": {
+        "title": "Configurações",
+        "language": "Idioma",
+        "language_description": "Selecione o idioma da interface"
+    },
+    "about": {
+        "title": "Sobre Inspector GGUF",
+        "description": "Uma ferramenta poderosa para inspeção de arquivos GGUF",
+        "built_with": "Construído com Rust e egui",
+        "license": "Licença: MIT",
+        "copyright": "© 2025 FerrisMind",
+        "check_updates": "Verificar atualizações",
+        "github": "GitHub"
+    },
+    "languages": {
+        "english": "English",
+        "russian": "Русский",
+        "portuguese_brazilian": "Português (Brasil)"
+    },
+    "panels": {
+        "chat_template": "Modelo de Chat do Tokenizador",
+        "ggml_tokens": "Tokens GGML do Tokenizador",
+        "ggml_merges": "Fusões GGML do Tokenizador"
+    },
+    "data": {
+        "binary_long": "<binário> (longo)",
+        "base64": "Base64",
+        "key": "chave",
+        "value": "valor"
+    },
+    "errors": {
+        "export_failed": "Falha na exportação: {0}",
+        "releases_not_found": "Releases não encontrados no repositório",
+        "github_api_failed": "Solicitação da API do GitHub falhou com status: {0}",
+        "parse_tag_failed": "Falha ao analisar tag_name da resposta do GitHub",
+        "new_version_available": "Nova versão disponível: {0}",
+        "latest_version": "Você tem a versão mais recente"
+    },
+    "actions": {
+        "download": "Baixar",
+        "run_cargo_license": "Execute 'cargo license' para visualizar todas as licenças."
+    },
+    "info": {
+        "third_party_components": "Esta aplicação usa componentes de terceiros",
+        "open_source_licenses": "licenciados sob várias licenças de código aberto."
+    }
+}

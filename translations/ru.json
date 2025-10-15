@@ -1,0 +1,87 @@
+{
+  "app": {
+    "title": "Inspector GGUF",
+    "version": "Версия"
+  },
+  "buttons": {
+    "load": "Загрузить",
+    "clear": "Очистить",
+    "export": "Экспорт",
+    "settings": "Настройки",
+    "about": "О программе",
+    "close": "Закрыть",
+    "copy": "Копировать",
+    "view": "Просмотр",
+    "filter": "Фильтр"
+  },
+  "menu": {
+    "file": "Файл",
+    "export": "Экспорт",
+    "settings": "Настройки",
+    "help": "Справка"
+  },
+  "export": {
+    "csv": "CSV",
+    "yaml": "YAML",
+    "markdown": "MD",
+    "html": "HTML",
+    "pdf": "PDF"
+  },
+  "messages": {
+    "loading": "Загрузка файла...",
+    "no_metadata": "Метаданные недоступны",
+    "export_failed": "Ошибка экспорта: {0}",
+    "file_open_error": "Не удалось открыть файл: {0}",
+    "parsing_error": "Ошибка парсинга GGUF: {0}",
+    "checking_updates": "Проверка обновлений...",
+    "update_available": "Доступна новая версия: {0}",
+    "up_to_date": "У вас установлена последняя версия",
+    "update_error": "Ошибка проверки: {0}"
+  },
+  "settings": {
+    "title": "Настройки",
+    "language": "Язык",
+    "language_description": "Выберите язык интерфейса"
+  },
+  "about": {
+    "title": "О программе Inspector GGUF",
+    "description": "Мощный инструмент для анализа файлов GGUF",
+    "built_with": "Создано с использованием Rust и egui",
+    "license": "Лицензия: MIT",
+    "copyright": "© 2025 FerrisMind",
+    "check_updates": "Проверить обновления",
+    "github": "GitHub"
+  },
+  "languages": {
+    "english": "English",
+    "russian": "Русский",
+    "portuguese_brazilian": "Português (Brasil)"
+  },
+  "panels": {
+    "chat_template": "Шаблон чата токенизатора",
+    "ggml_tokens": "Токены GGML токенизатора",
+    "ggml_merges": "Слияния GGML токенизатора"
+  },
+  "data": {
+    "binary_long": "<бинарные> (длинные)",
+    "base64": "Base64",
+    "key": "ключ",
+    "value": "значение"
+  },
+  "errors": {
+    "export_failed": "Ошибка экспорта: {0}",
+    "releases_not_found": "Релизы не найдены в репозитории",
+    "github_api_failed": "Запрос к GitHub API завершился с ошибкой: {0}",
+    "parse_tag_failed": "Не удалось извлечь tag_name из ответа GitHub",
+    "new_version_available": "Доступна новая версия: {0}",
+    "latest_version": "У вас установлена последняя версия"
+  },
+  "actions": {
+    "download": "Скачать",
+    "run_cargo_license": "Запустите 'cargo license' для просмотра всех лицензий."
+  },
+  "info": {
+    "third_party_components": "Это приложение использует сторонние компоненты",
+    "open_source_licenses": "лицензированные под различными лицензиями с открытым исходным кодом."
+  }
+}

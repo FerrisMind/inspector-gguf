@@ -1,7 +1,38 @@
-mod gui;
+use inspector_gguf::gui;
 use structopt::StructOpt;
 
 use std::path::PathBuf;
+use image::GenericImageView;
+use egui::IconData;
+
+
+#[cfg(target_os = "windows")]
+fn set_console_title(title: &str) {
+    use winapi::um::wincon::SetConsoleTitleA;
+    use std::ffi::CString;
+
+    let c_title = CString::new(title).unwrap();
+    unsafe {
+        SetConsoleTitleA(c_title.as_ptr());
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn set_console_title(_title: &str) {
+    // На других платформах ничего не делаем
+}
+
+fn load_icon() -> Result<IconData, Box<dyn std::error::Error>> {
+    // Используем высококачественную иконку большого размера для лучшей видимости
+    let img = image::open("assets/icons/128x128@2x.png")?;
+    let (width, height) = img.dimensions();
+    let rgba = img.to_rgba8().into_raw();
+    Ok(IconData {
+        rgba,
+        width,
+        height,
+    })
+}
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "gguf-inspector")]
@@ -29,6 +60,9 @@ struct Opt {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opt = Opt::from_args();
+
+    // Устанавливаем заголовок консольного окна
+    set_console_title("Inspector GGUF");
 
     // Initialize puffin profiler and server only when profiling
     let _puffin_server = if opt.profile {
@@ -90,7 +124,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Metadata processing phase
         let metadata_start = std::time::Instant::now();
-        let metadata_result = inspector_gguf::format::load_gguf_metadata_sync(&model_path);
+        let metadata_result = inspector_gguf::format::load_gguf_metadata_with_full_content_sync(&model_path);
         let metadata_duration = metadata_start.elapsed();
 
         let total_duration = profiling_start.elapsed();
@@ -111,7 +145,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     metadata.len()
                 );
                 // Print some sample metadata
-                for (key, value) in metadata.iter().take(5) {
+                for (key, value, _) in metadata.iter().take(5) {
                     println!("  {}: {}", key, value.chars().take(50).collect::<String>());
                 }
 
@@ -119,7 +153,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let sample_metadata: std::collections::HashMap<String, String> = metadata
                     .iter()
                     .take(10)
-                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .map(|(k, v, _)| (k.clone(), v.clone()))
                     .collect();
 
                 serde_json::json!({
@@ -188,9 +222,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     if opt.gui {
-        let mut native_options = eframe::NativeOptions::default();
-        // Устанавливаем минимальный размер окна 640x360
-        native_options.viewport.min_inner_size = Some(egui::vec2(640.0, 360.0));
+        let icon = load_icon().unwrap_or_else(|_| {
+            eprintln!("Warning: Failed to load icon, using default");
+            IconData::default()
+        });
+
+        let native_options = eframe::NativeOptions {
+            viewport: egui::ViewportBuilder::default()
+                .with_inner_size([960.0, 600.0])
+                .with_min_inner_size([640.0, 360.0])
+                .with_decorations(true)
+                .with_transparent(false) // Disable transparency to avoid potential issues
+                .with_icon(icon),
+            ..Default::default()
+        };
+        
         let _ = eframe::run_native(
             "Inspector GGUF",
             native_options,
@@ -230,27 +276,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // CLI mode: fallback to previous behavior if input provided
     if let Some(input) = opt.input {
-        let mut f = std::fs::File::open(&input)?;
-        let mut buf = Vec::new();
-        use std::io::Read;
-        f.read_to_end(&mut buf)?;
-        let mut cursor = std::io::Cursor::new(&buf);
-        let content = candle::quantized::gguf_file::Content::read(&mut cursor)?;
+        // Use our improved metadata loading function
+        let metadata = inspector_gguf::format::load_gguf_metadata_with_full_content_sync(&input)?;
 
         let mut map = serde_json::Map::new();
         let mut keys = Vec::new();
-        for (k, _v) in content.metadata.iter() {
+
+        for (k, v, _) in &metadata {
             keys.push(k.clone());
-        }
-        // Convert any variant to a readable string (second pass)
-        for (k, v) in content.metadata.iter() {
-            let s = inspector_gguf::format::readable_value(v);
-            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&s) {
+            // Try to parse as JSON, fallback to string
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(v) {
                 map.insert(k.clone(), json);
             } else {
-                map.insert(k.clone(), serde_json::Value::String(s));
+                map.insert(k.clone(), serde_json::Value::String(v.clone()));
             }
         }
+
         let exported = serde_json::json!({"keys": keys, "raw": serde_json::Value::Object(map)});
         let out_path = match opt.output {
             Some(p) => p,

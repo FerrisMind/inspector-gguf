@@ -1,0 +1,87 @@
+{
+  "app": {
+    "title": "Inspector GGUF",
+    "version": "Version"
+  },
+  "buttons": {
+    "load": "Load",
+    "clear": "Clear",
+    "export": "Export",
+    "settings": "Settings",
+    "about": "About",
+    "close": "Close",
+    "copy": "Copy",
+    "view": "View",
+    "filter": "Filter"
+  },
+  "menu": {
+    "file": "File",
+    "export": "Export",
+    "settings": "Settings",
+    "help": "Help"
+  },
+  "export": {
+    "csv": "CSV",
+    "yaml": "YAML",
+    "markdown": "MD",
+    "html": "HTML",
+    "pdf": "PDF"
+  },
+  "messages": {
+    "loading": "Loading file...",
+    "no_metadata": "No metadata available",
+    "export_failed": "Export failed: {0}",
+    "file_open_error": "Failed to open file: {0}",
+    "parsing_error": "GGUF parsing error: {0}",
+    "checking_updates": "Checking for updates...",
+    "update_available": "New version available: {0}",
+    "up_to_date": "You have the latest version",
+    "update_error": "Update check error: {0}"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "language_description": "Select interface language"
+  },
+  "about": {
+    "title": "About Inspector GGUF",
+    "description": "A powerful GGUF file inspection tool",
+    "built_with": "Built with Rust and egui",
+    "license": "License: MIT",
+    "copyright": "© 2025 FerrisMind",
+    "check_updates": "Check for updates",
+    "github": "GitHub"
+  },
+  "languages": {
+    "english": "English",
+    "russian": "Русский",
+    "portuguese_brazilian": "Português (Brasil)"
+  },
+  "panels": {
+    "chat_template": "Tokenizer Chat Template",
+    "ggml_tokens": "Tokenizer GGML Tokens",
+    "ggml_merges": "Tokenizer GGML Merges"
+  },
+  "data": {
+    "binary_long": "<binary> (long)",
+    "base64": "Base64",
+    "key": "key",
+    "value": "value"
+  },
+  "errors": {
+    "export_failed": "Export failed: {0}",
+    "releases_not_found": "No releases found in repository",
+    "github_api_failed": "GitHub API request failed with status: {0}",
+    "parse_tag_failed": "Failed to parse tag_name from GitHub response",
+    "new_version_available": "New version available: {0}",
+    "latest_version": "You have the latest version"
+  },
+  "actions": {
+    "download": "Download",
+    "run_cargo_license": "Run 'cargo license' to view all licenses."
+  },
+  "info": {
+    "third_party_components": "This application uses third-party components",
+    "open_source_licenses": "licensed under various open source licenses."
+  }
+}
