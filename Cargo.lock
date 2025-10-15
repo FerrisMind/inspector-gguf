@@ -2941,7 +2941,7 @@ dependencies = [
 
 [[package]]
 name = "inspector-gguf"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "base64 0.22.1",
  "candle-core",
@@ -2956,6 +2956,7 @@ dependencies = [
  "puffin",
  "puffin_http",
  "pulldown-cmark",
+ "regex",
  "reqwest 0.11.27",
  "rfd",
  "semver 1.0.27",
@@ -2964,6 +2965,7 @@ dependencies = [
  "serde_yaml",
  "structopt",
  "sysinfo",
+ "tempfile",
  "thiserror 1.0.69",
  "tokenizers",
  "winapi",

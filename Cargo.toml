@@ -1,6 +1,6 @@
 [package]
 name = "inspector-gguf"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "A powerful GGUF file inspection tool with a graphical and command-line interface"
 license = "MIT"
@@ -45,6 +45,10 @@ markdown2pdf = "0.1"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 semver = "1.0"
 thiserror = "1.0"
+regex = "1.0"
+
+[dev-dependencies]
+tempfile = "3.0"
 
 [features]
 default = []

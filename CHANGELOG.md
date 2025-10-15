@@ -8,19 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Comprehensive documentation suite
-- Multi-language support (English, Russian, Portuguese Brazilian)
-- Enhanced export system with PDF support
-- Responsive UI design with adaptive sizing
-- Performance profiling integration
-- Automatic update checking
-- Drag-and-drop file loading
+
+### Changed
+
+### Fixed
+
+## [0.2.0] - 2025-10-16
+
+### Added
+- Multi-language support with Portuguese (Brazil) README translation
+- Comprehensive documentation suite with refactored project structure
+- Adaptive UI features for improved responsiveness
+- Custom font support in GUI
+- Async GGUF loading with performance profiling
+- Markdown to PDF conversion capabilities
+- Enhanced GUI theme and header design
+- Drag-and-drop file loading functionality
 - Special viewers for tokenizer data
 - Base64 encoding for binary data
-- Comprehensive test coverage
 
 ### Changed
 - Complete GUI refactoring into modular architecture
+- GUI elements updated for improved aesthetics and functionality
+- Refactored readable_value function with chat template handling
+- Updated project dependencies for better compatibility
+- Project renamed to inspector-gguf with updated metadata
 - Improved error handling and user feedback
 - Enhanced localization system with fallback support
 - Optimized memory usage for large files
@@ -102,14 +114,14 @@ This is the first public release of Inspector GGUF, providing essential function
 - [x] Cross-platform builds
 - [x] Initial documentation
 
-### Phase 2: Enhancement (v0.2.0) 🚧
+### Phase 2: Enhancement (v0.2.0) ✅
 - [x] GUI refactoring and modularization
 - [x] Multi-language support
 - [x] Enhanced export system
 - [x] Responsive UI design
 - [x] Comprehensive documentation
-- [ ] Performance optimizations
-- [ ] Advanced filtering capabilities
+- [x] Performance optimizations
+- [x] Async loading and profiling integration
 
 ### Phase 3: Advanced Features (v0.3.0) 📋
 - [ ] Plugin system architecture
