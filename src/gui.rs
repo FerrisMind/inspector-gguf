@@ -105,7 +105,7 @@ fn apply_inspector_theme(ctx: &egui::Context) {
     visuals.widgets.active.fg_stroke = egui::Stroke::new(1.0, INSPECTOR_BLUE);
 
     // Accent цвета
-    visuals.selection.bg_fill = GADGET_YELLOW;
+    visuals.selection.bg_fill = egui::Color32::from_rgb(53, 24, 162); // Цвет выделенного текста #3518a2
     visuals.hyperlink_color = GADGET_YELLOW;
     visuals.override_text_color = None;
 
@@ -389,7 +389,7 @@ impl eframe::App for GgufApp {
                         egui::Button::new(
                             egui::RichText::new(format!(
                                 "{} MD",
-                                egui_phosphor::regular::FILE_TEXT
+                                egui_phosphor::regular::FILE_MD
                             ))
                             .size(get_adaptive_font_size(16.0, ctx)),
                         ),
@@ -404,7 +404,7 @@ impl eframe::App for GgufApp {
                     .add_sized(
                         [button_width, small_button_height],
                         egui::Button::new(
-                            egui::RichText::new(format!("{} HTML", egui_phosphor::regular::CODE))
+                            egui::RichText::new(format!("{} HTML", egui_phosphor::regular::FILE_HTML))
                                 .size(get_adaptive_font_size(16.0, ctx)),
                         ),
                     )
@@ -545,17 +545,23 @@ impl eframe::App for GgufApp {
             )
             .show(ctx, |ui| {
                 ui.vertical_centered(|ui| {
-                    ui.label(egui::RichText::new(egui_phosphor::regular::CHART_BAR).size(get_adaptive_font_size(16.0, ctx)));
-                    ui.heading(
-                        egui::RichText::new("Investigation Dashboard")
-                            .color(GADGET_YELLOW)
-                            .size(get_adaptive_font_size(14.0, ctx)),
-                    );
-                    ui.label(
-                        egui::RichText::new("Case Evidence & Analysis")
-                            .color(TECH_GRAY)
-                            .size(get_adaptive_font_size(12.0, ctx)),
-                    );
+                    // Иконка и заголовок в одном ряду
+                    ui.horizontal(|ui| {
+                        ui.label(egui::RichText::new(egui_phosphor::regular::CHART_BAR).size(get_adaptive_font_size(16.0, ctx)));
+                        ui.add_space(get_adaptive_font_size(8.0, ctx));
+                        ui.vertical(|ui| {
+                            ui.heading(
+                                egui::RichText::new("Investigation Dashboard")
+                                    .color(GADGET_YELLOW)
+                                    .size(get_adaptive_font_size(14.0, ctx)),
+                            );
+                            ui.label(
+                                egui::RichText::new("Case Evidence & Analysis")
+                                    .color(TECH_GRAY)
+                                    .size(get_adaptive_font_size(12.0, ctx)),
+                            );
+                        });
+                    });
                 });
                 ui.add_space(get_adaptive_font_size(12.0, ctx));
 
@@ -715,9 +721,9 @@ impl eframe::App for GgufApp {
         // Диалог "О программе"
         if self.show_about {
             let window_size = if ctx.screen_rect().width() >= 1440.0 {
-                [500.0, 400.0]
+                [550.0, 450.0]
             } else {
-                [400.0, 300.0]
+                [450.0, 380.0]
             };
             egui::Window::new("About Inspector GGUF")
                 .resizable(false)
@@ -730,10 +736,29 @@ impl eframe::App for GgufApp {
                         ui.label(egui::RichText::new("A powerful GGUF file inspection tool").size(get_adaptive_font_size(14.0, ctx)));
                         ui.label(egui::RichText::new("Built with Rust and egui").size(get_adaptive_font_size(14.0, ctx)));
                         ui.add_space(get_adaptive_font_size(8.0, ctx));
+
+                        // Информация о лицензиях
+                        ui.label(egui::RichText::new("License: MIT").size(get_adaptive_font_size(12.0, ctx)).color(GADGET_YELLOW));
+                        ui.label(egui::RichText::new("This application uses third-party components").size(get_adaptive_font_size(12.0, ctx)));
+                        ui.label(egui::RichText::new("licensed under various open source licenses.").size(get_adaptive_font_size(12.0, ctx)));
+                        ui.add_space(get_adaptive_font_size(4.0, ctx));
+                        ui.label(egui::RichText::new("Run 'cargo license' to view all licenses.").size(get_adaptive_font_size(11.0, ctx)).color(TECH_GRAY));
+                        ui.add_space(get_adaptive_font_size(8.0, ctx));
+
                         ui.label(egui::RichText::new("© 2025 FerrisMind").size(get_adaptive_font_size(12.0, ctx)));
-                        if ui.button(egui::RichText::new("Close").size(get_adaptive_font_size(14.0, ctx))).clicked() {
-                            self.show_about = false;
-                        }
+
+                        ui.horizontal(|ui| {
+                            // Кнопка GitHub
+                            if ui.button(egui::RichText::new(format!("{} GitHub", egui_phosphor::regular::GITHUB_LOGO)).size(get_adaptive_font_size(14.0, ctx))).clicked() {
+                                let _ = opener::open("https://github.com/FerrisMind/inspector-gguf");
+                            }
+
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                if ui.button(egui::RichText::new("Close").size(get_adaptive_font_size(14.0, ctx))).clicked() {
+                                    self.show_about = false;
+                                }
+                            });
+                        });
                     });
                 });
         }
