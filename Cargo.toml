@@ -11,6 +11,23 @@ categories = ["command-line-utilities", "gui", "development-tools"]
 authors = ["FerrisMind"]
 homepage = "https://github.com/FerrisMind/inspector-gguf"
 documentation = "https://docs.rs/inspector-gguf"
+exclude = [
+    ".kiro/",
+    ".cursor/",
+    "target/",
+    "model/",
+    ".cargo/",
+    "*.lock",
+    ".git/",
+    ".github/",
+    "docs/",
+    "examples/",
+    "CHANGELOG.md",
+    "CODE_OF_CONDUCT.md",
+    "CONTRIBUTING.md",
+    "README.pt-BR.md",
+    "README.ru.md"
+]
 
 # Игнорируемые зависимости для cargo-machete
 [package.metadata.cargo-machete]
