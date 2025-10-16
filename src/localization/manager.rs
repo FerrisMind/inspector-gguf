@@ -1,6 +1,8 @@
-use std::collections::HashMap;
+use crate::localization::{
+    Language, LocalizationError, SettingsManager, SystemLocaleDetector, TranslationLoader,
+};
 use serde_json::Value;
-use crate::localization::{Language, LocalizationError, TranslationLoader, SystemLocaleDetector, SettingsManager};
+use std::collections::HashMap;
 
 /// Type alias for translation data structure containing nested key-value pairs.
 ///
@@ -98,30 +100,38 @@ impl LocalizationManager {
             current_language: Language::English,
             translations: HashMap::new(),
         };
-        
+
         // Load translations for all supported languages
         let loader = TranslationLoader::new();
-        for language in [Language::English, Language::Russian, Language::PortugueseBrazilian] {
+        for language in [
+            Language::English,
+            Language::Russian,
+            Language::PortugueseBrazilian,
+        ] {
             match loader.load_translation(language) {
                 Ok(translations) => {
                     manager.translations.insert(language, translations);
                 }
                 Err(e) => {
-                    eprintln!("Warning: Failed to load translations for {:?}: {}", language, e);
+                    eprintln!(
+                        "Warning: Failed to load translations for {:?}: {}",
+                        language, e
+                    );
                     // Insert empty map as fallback
                     manager.translations.insert(language, HashMap::new());
                 }
             }
         }
-        
+
         // Determine initial language from settings or system locale
         let settings_manager = SettingsManager::new().unwrap_or_default();
-        let initial_language = settings_manager.load_language_preference()
+        let initial_language = settings_manager
+            .load_language_preference()
             .or_else(SystemLocaleDetector::detect)
             .unwrap_or(Language::English);
-            
+
         manager.current_language = initial_language;
-        
+
         Ok(manager)
     }
 
@@ -169,7 +179,8 @@ impl LocalizationManager {
         // Try to get translation from current language
         if let Some(translation_map) = self.translations.get(&self.current_language)
             && let Some(value) = self.get_nested_value(translation_map, key)
-            && let Some(text) = value.as_str() {
+            && let Some(text) = value.as_str()
+        {
             return text.to_string();
         }
 
@@ -177,7 +188,8 @@ impl LocalizationManager {
         if self.current_language != Language::English
             && let Some(translation_map) = self.translations.get(&Language::English)
             && let Some(value) = self.get_nested_value(translation_map, key)
-            && let Some(text) = value.as_str() {
+            && let Some(text) = value.as_str()
+        {
             return text.to_string();
         }
 
@@ -216,10 +228,10 @@ impl LocalizationManager {
     /// ```
     ///
     /// See also [`set_language_with_persistence`] for persistent language changes,
-/// [`SystemLocaleDetector::detect`] for automatic detection, and [`SettingsManager`]
-/// for settings management.
-///
-/// [`set_language_with_persistence`]: LocalizationManager::set_language_with_persistence
+    /// [`SystemLocaleDetector::detect`] for automatic detection, and [`SettingsManager`]
+    /// for settings management.
+    ///
+    /// [`set_language_with_persistence`]: LocalizationManager::set_language_with_persistence
     pub fn set_language(&mut self, language: Language) -> Result<(), LocalizationError> {
         self.current_language = language;
         Ok(())
@@ -258,16 +270,19 @@ impl LocalizationManager {
     /// // Preference will be restored on next application startup
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    pub fn set_language_with_persistence(&mut self, language: Language) -> Result<(), LocalizationError> {
+    pub fn set_language_with_persistence(
+        &mut self,
+        language: Language,
+    ) -> Result<(), LocalizationError> {
         self.current_language = language;
-        
+
         // Persist the language preference to settings
         let settings_manager = SettingsManager::new().unwrap_or_default();
         if let Err(e) = settings_manager.save_language_preference(language) {
             eprintln!("Warning: Failed to save language preference: {}", e);
             // Don't fail the language change if we can't save settings
         }
-        
+
         Ok(())
     }
 
@@ -307,14 +322,18 @@ impl LocalizationManager {
     ///
     /// let manager = LocalizationManager::new()?;
     /// let languages = manager.get_available_languages();
-    /// 
+    ///
     /// for lang in languages {
     ///     println!("Supported: {} ({})", lang.display_name(), lang.to_code());
     /// }
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn get_available_languages(&self) -> Vec<Language> {
-        vec![Language::English, Language::Russian, Language::PortugueseBrazilian]
+        vec![
+            Language::English,
+            Language::Russian,
+            Language::PortugueseBrazilian,
+        ]
     }
 
     /// Loads or replaces translations for a specific language.
@@ -365,23 +384,23 @@ impl LocalizationManager {
     ///
     /// # Examples
     ///
-    /// ```rust
-    /// // For a translation structure like:
-    /// // {
-    /// //   "buttons": {
-    /// //     "load": "Load File",
-    /// //     "save": "Save File"
-    /// //   }
-    /// // }
-    /// 
-    /// // get_nested_value(map, "buttons.load") returns Some("Load File")
-    /// // get_nested_value(map, "buttons.nonexistent") returns None
-    /// // get_nested_value(map, "nonexistent.key") returns None
+    /// For a translation structure like:
+    /// ```json
+    /// {
+    ///   "buttons": {
+    ///     "load": "Load File",
+    ///     "save": "Save File"
+    ///   }
+    /// }
     /// ```
+    ///
+    /// - `get_nested_value(map, "buttons.load")` returns `Some("Load File")`
+    /// - `get_nested_value(map, "buttons.nonexistent")` returns `None`
+    /// - `get_nested_value(map, "nonexistent.key")` returns `None`
     fn get_nested_value<'a>(&self, map: &'a TranslationMap, key: &str) -> Option<&'a Value> {
         let parts: Vec<&str> = key.split('.').collect();
         let mut current_value = None;
-        
+
         // Start with the root map
         for (i, part) in parts.iter().enumerate() {
             if i == 0 {
@@ -396,7 +415,7 @@ impl LocalizationManager {
                 }
             }
         }
-        
+
         current_value
     }
 }

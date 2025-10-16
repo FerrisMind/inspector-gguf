@@ -68,9 +68,6 @@
 //!   - [`localization::LocalizationManager`] - Central localization coordinator
 //!   - [`localization::Language`] - Supported language enumeration
 //!   - [`localization::SystemLocaleDetector`] - Automatic locale detection
-//! - [`versioning`] - Version management and update checking functionality
-//!   - [`versioning::CargoUpdater`] - Cargo.toml version management
-//!   - [`versioning::VersionCli`] - Command-line version operations
 //!
 //! ## Architecture
 //!
@@ -79,7 +76,6 @@
 //! - **Core Parsing**: The [`mod@format`] module handles all GGUF file operations using the [`candle`] framework
 //! - **User Interface**: The [`gui`] module provides immediate-mode GUI components with [`gui::GgufApp`] as the central coordinator
 //! - **Internationalization**: The [`localization`] module manages translations through [`localization::LocalizationManager`] and locale detection via [`localization::SystemLocaleDetector`]
-//! - **Version Management**: The [`versioning`] module handles updates through [`versioning::CargoUpdater`] and CLI operations via [`versioning::VersionCli`]
 //!
 //! ## Error Handling
 //!
@@ -113,7 +109,6 @@
 pub mod format;
 pub mod gui;
 pub mod localization;
-pub mod versioning;
 
 
 

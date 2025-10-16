@@ -1,127 +1,85 @@
-# Inspector GGUF Project Structure
+# Project Structure
 
-## Root Directory Layout
-```
-inspector-gguf/
-├── src/                    # Source code
-├── docs/                   # Documentation
-├── examples/               # Usage examples
-├── translations/           # Localization files
-├── assets/                 # Static assets (icons, fonts)
-├── model/                  # Test model files
-├── target/                 # Build artifacts (ignored)
-├── Cargo.toml             # Project configuration
-├── build.rs               # Build script
-└── README.md              # Project documentation
-```
+## Source Organization
 
-## Source Code Organization (`src/`)
 ```
 src/
-├── main.rs                # Application entry point and CLI
-├── lib.rs                 # Library exports and public API
-├── format.rs              # GGUF file format handling
-├── gui/                   # GUI components and logic
-│   ├── app.rs            # Main application state (GgufApp)
-│   ├── theme.rs          # UI theming and styling
-│   ├── layout.rs         # Responsive layout utilities
-│   ├── export.rs         # Multi-format export functionality
-│   ├── loader.rs         # Async file loading with progress
-│   ├── updater.rs        # Update checking from GitHub
-│   └── panels/           # UI panel components
-│       ├── sidebar.rs    # Left sidebar with actions
-│       ├── content.rs    # Main content display area
-│       └── dialogs.rs    # Modal dialogs and panels
-├── localization/         # Internationalization system
-│   ├── mod.rs           # Module exports
-│   ├── manager.rs       # Central localization management
-│   ├── loader.rs        # Translation file loading
-│   ├── detector.rs      # System locale detection
-│   ├── language.rs      # Language definitions
-│   └── settings.rs      # Persistent language settings
-├── versioning/          # Version management (future)
-└── documentation/       # Documentation automation (future)
+├── main.rs              # Entry point, CLI parsing, profiling setup
+├── lib.rs               # Public API and module exports
+├── format.rs            # GGUF parsing and metadata extraction
+├── gui/                 # GUI components (egui/eframe)
+│   ├── mod.rs
+│   ├── app.rs          # Main GgufApp state and eframe::App impl
+│   ├── theme.rs        # UI theming and color palette
+│   ├── layout.rs       # Responsive layout utilities
+│   ├── export.rs       # Multi-format export functions
+│   ├── loader.rs       # Async file loading with progress
+│   ├── updater.rs      # GitHub release update checking
+│   └── panels/         # Modular UI panels
+│       ├── mod.rs
+│       ├── sidebar.rs  # Left sidebar with actions
+│       ├── content.rs  # Main content display
+│       └── dialogs.rs  # Modal dialogs and right panels
+└── localization/       # i18n system
+    ├── mod.rs
+    ├── manager.rs      # Central localization coordinator
+    ├── loader.rs       # Translation file loading
+    ├── detector.rs     # System locale detection
+    ├── language.rs     # Language enum and metadata
+    ├── settings.rs     # Localization settings
+    └── error.rs        # Localization errors
 ```
 
-## Module Responsibilities
+## Supporting Files
 
-### Core Modules
-- **`main.rs`**: CLI parsing, application initialization, profiling setup
-- **`lib.rs`**: Public API exports for library usage
-- **`format.rs`**: GGUF parsing using Candle, metadata extraction
-
-### GUI System (`gui/`)
-- **`app.rs`**: Main application state, eframe::App implementation
-- **`theme.rs`**: Inspector Gadget color scheme, font management
-- **`layout.rs`**: Responsive sizing functions, adaptive UI elements
-- **`export.rs`**: CSV, YAML, Markdown, HTML, PDF export functions
-- **`loader.rs`**: Background file loading with Arc<Mutex<>> progress tracking
-- **`updater.rs`**: GitHub API integration for version checking
-
-### Panel Architecture (`gui/panels/`)
-- **`sidebar.rs`**: Load/Clear/Export buttons, settings access
-- **`content.rs`**: Metadata display, filtering, special viewers
-- **`dialogs.rs`**: Settings modal, about dialog, right-side panels
-
-### Localization System (`localization/`)
-- **`manager.rs`**: LocalizationManager with translation caching
-- **`loader.rs`**: JSON translation file parsing and validation
-- **`detector.rs`**: Platform-specific locale detection (Windows/Unix)
-- **`language.rs`**: Language enum (English, Russian, PortugueseBrazilian)
-- **`settings.rs`**: Persistent language preference storage
-
-## Asset Organization
 ```
 assets/
-├── fonts/                # Custom fonts (if any)
-└── icons/               # Application icons
-    ├── 128x128@2x.png   # High-DPI icon
-    └── ...              # Various sizes
+├── fonts/              # Custom fonts for UI
+└── icons/              # Application icons (various sizes)
+
+translations/           # i18n JSON files
+├── en.json            # English (default)
+├── ru.json            # Russian
+└── pt-BR.json         # Portuguese Brazilian
+
+docs/                   # Comprehensive documentation
+├── README.md          # Documentation index
+├── USER_GUIDE.md      # End-user guide
+├── API.md             # Library API documentation
+├── ARCHITECTURE.md    # Technical architecture
+├── DEPLOYMENT.md      # Build and deployment guide
+└── FAQ.md             # Troubleshooting and FAQ
+
+model/                 # Test model files (not in git)
 ```
 
-## Translation Files (`translations/`)
-```
-translations/
-├── en.json              # English (default)
-├── ru.json              # Russian
-└── pt-BR.json           # Portuguese (Brazilian)
-```
+## Architecture Patterns
 
-## Documentation Structure (`docs/`)
-```
-docs/
-├── README.md            # Documentation index
-├── USER_GUIDE.md        # End-user documentation
-├── API.md               # Library API reference
-├── ARCHITECTURE.md      # Technical architecture
-├── DEPLOYMENT.md        # Build and deployment
-└── FAQ.md               # Frequently asked questions
-```
+### Modular Design
+- Clear separation between GUI, CLI, and core functionality
+- Panel-based UI architecture for maintainability
+- Centralized state management in `GgufApp`
 
-## Naming Conventions
-- **Files**: snake_case (e.g., `cargo_updater.rs`)
-- **Modules**: snake_case (e.g., `localization`)
-- **Structs**: PascalCase (e.g., `GgufApp`, `LocalizationManager`)
-- **Functions**: snake_case (e.g., `load_gguf_metadata_sync`)
-- **Constants**: SCREAMING_SNAKE_CASE (e.g., `INSPECTOR_BLUE`)
+### Error Handling
+- Custom error types using `thiserror`
+- Module-specific error types (e.g., `localization::error`)
+- Comprehensive error propagation with context
 
-## Import Organization
-```rust
-// Standard library imports first
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+### Async Operations
+- Background file loading with progress tracking
+- Thread-safe state sharing via `Arc<Mutex<T>>`
+- Non-blocking UI during long operations
 
-// External crate imports
-use eframe::egui;
-use serde::{Deserialize, Serialize};
+### Localization
+- JSON-based translation files
+- Automatic system locale detection
+- Runtime language switching without restart
+- Fallback to English for missing translations
 
-// Internal crate imports
-use crate::localization::LocalizationManager;
-use crate::gui::theme::apply_inspector_theme;
-```
+## Key Conventions
 
-## Test Organization
-- **Unit tests**: Inline with `#[cfg(test)]` modules
-- **Integration tests**: `tests/` directory (if needed)
-- **Test utilities**: Shared test helpers in test modules
-- **Mock data**: Standardized test datasets for consistent testing
+- All public APIs documented with rustdoc
+- Unit tests inline with implementation
+- Integration tests in `tests/` directory
+- Profiling support via puffin (enabled with `--profile` flag)
+- Windows-specific code gated with `#[cfg(target_os = "windows")]`

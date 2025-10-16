@@ -10,6 +10,7 @@ keywords = ["gguf", "llm", "model", "inspector", "candle"]
 categories = ["command-line-utilities", "gui", "development-tools"]
 authors = ["FerrisMind"]
 homepage = "https://github.com/FerrisMind/inspector-gguf"
+documentation = "https://docs.rs/inspector-gguf"
 
 # Игнорируемые зависимости для cargo-machete
 [package.metadata.cargo-machete]

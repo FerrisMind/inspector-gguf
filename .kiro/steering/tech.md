@@ -1,66 +1,70 @@
-# Inspector GGUF Technology Stack
+# Technical Stack
 
-## Core Technologies
-- **Language**: Rust (Edition 2024, MSRV 1.70+)
-- **GUI Framework**: egui/eframe 0.32 - Immediate mode GUI
-- **GGUF Parsing**: Candle (candle-core 0.9.1) - Rust ML framework
-- **Build System**: Cargo with custom build.rs for Windows resources
+## Language & Edition
 
-## Key Dependencies
-- **CLI**: structopt 0.3 - Command-line argument parsing
-- **Serialization**: serde 1.0 + serde_json + serde_yaml
-- **File Dialogs**: rfd 0.15 - Native file dialogs
-- **Async/Threading**: std::sync (Arc, Mutex) for thread-safe operations
-- **Profiling**: puffin 0.19 + puffin_http 0.16 - Performance profiling
-- **Updates**: reqwest 0.11 + semver 1.0 - GitHub API integration
-- **Export Formats**: csv, pulldown-cmark, markdown2pdf
-- **Icons**: egui-phosphor 0.10 - Icon library
+- **Rust** edition 2024
+- Minimum Rust version: 1.70+
 
-## Architecture Patterns
-- **Modular Structure**: Clear separation of concerns across modules
-- **Error Handling**: thiserror for structured error types
-- **Async Operations**: Background loading with progress tracking
-- **State Management**: Centralized state in main app struct
-- **Localization**: JSON-based translation system with runtime switching
+## Core Dependencies
 
-## Build Configuration
+- **candle-core** (0.9.1) - GGUF file parsing and ML framework
+- **egui** (0.32) / **eframe** (0.32) - Immediate mode GUI framework
+- **serde** / **serde_json** - Serialization and JSON handling
+- **structopt** (0.3) - CLI argument parsing
+- **thiserror** (1.0) - Error handling
+- **reqwest** (0.11) - HTTP client for update checking
+- **semver** (1.0) - Version comparison
+
+## Export & Format Support
+
+- **csv** (1.3) - CSV export
+- **serde_yaml** (0.9) - YAML export
+- **pulldown-cmark** (0.13) / **markdown2pdf** (0.1) - Markdown and PDF export
+- **base64** (0.22) - Binary data encoding
+
+## Platform-Specific
+
+- **winapi** (0.3) - Windows console and locale detection
+- **winres** (0.1) - Windows resource embedding (build-time)
+
+## Profiling & Monitoring
+
+- **puffin** (0.19) / **puffin_http** (0.16) - Performance profiling
+- **sysinfo** (0.30) - System resource monitoring
+
+## Common Commands
+
 ```bash
-# Development build
-cargo build
-
-# Release build (optimized)
+# Build release version
 cargo build --release
 
-# Run GUI application
-cargo run -- --gui
+# Run GUI mode
+cargo run --release -- --gui
 
 # Run with profiling
-cargo run -- --profile
+cargo run --release -- --profile
 
 # Run tests
 cargo test
 
-# Format code
-cargo fmt
+# Run tests with all features
+cargo test --all-features
 
-# Lint code
-cargo clippy
+# Check for unused dependencies
+cargo machete
+
+# Check for errors
+cargo clippy --lib -- -D warnings
+
+# Generate documentation
+cargo doc --all-features --open
 ```
 
-## Performance Optimizations
-- **Release Profile**: High optimization (opt-level = 3, LTO enabled)
-- **Memory Management**: Efficient handling of large GGUF files
-- **Async Loading**: Non-blocking file operations with progress tracking
-- **Profiling Integration**: Built-in puffin profiler for performance monitoring
+## Build Configuration
 
-## Platform Support
-- **Windows**: Native support with winres build dependency
-- **macOS**: Full compatibility
-- **Linux**: Complete support
-- **Cross-compilation**: Rust's native cross-platform capabilities
-
-## Development Tools
-- **Testing**: Built-in cargo test with tempfile for integration tests
-- **Profiling**: Puffin web interface at http://127.0.0.1:8585
-- **Documentation**: Comprehensive inline docs and external markdown
-- **CI/CD**: GitHub Actions for automated testing and releases
+Release builds use aggressive optimization:
+- `opt-level = 3` - Maximum optimization
+- `lto = "thin"` - Link-time optimization
+- `codegen-units = 1` - Single codegen unit for better optimization
+- `strip = true` - Remove debug symbols
+- No debug info or assertions in release builds
