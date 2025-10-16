@@ -1,5 +1,33 @@
-// Dialog panels functionality
-// Handles settings dialog, about dialog, and right-side content panels
+//! Dialog panels and specialized content viewers.
+//!
+//! This module implements modal dialogs and specialized content viewing panels
+//! for the Inspector GGUF application. It provides settings management, application
+//! information display, and dedicated viewers for large content such as chat
+//! templates and tokenizer data.
+//!
+//! # Dialog Types
+//!
+//! ## Modal Dialogs
+//! - **Settings Dialog**: Language preferences and application configuration
+//! - **About Dialog**: Application information, version details, and update checking
+//!
+//! ## Content Panels
+//! - **Chat Template Viewer**: Dedicated panel for viewing large chat templates
+//! - **Token Data Viewer**: Specialized viewer for GGML tokens and merges
+//! - **Right-Side Panels**: Resizable panels that don't block main content
+//!
+//! # Design Features
+//!
+//! ## Responsive Design
+//! - **Adaptive Sizing**: Dialog dimensions adjust to screen size
+//! - **Minimum Sizes**: Ensures usability on small screens
+//! - **Scalable Typography**: Font sizes adapt to display density
+//!
+//! ## User Experience
+//! - **Modal Behavior**: Settings and About dialogs block interaction with main UI
+//! - **Non-Modal Panels**: Content viewers allow simultaneous main UI interaction
+//! - **Copy Functionality**: Easy copying of large content to clipboard
+//! - **Keyboard Navigation**: Standard dialog keyboard shortcuts
 
 use eframe::egui;
 use crate::localization::{LanguageProvider, LocalizationManager};
@@ -7,6 +35,68 @@ use crate::gui::layout::get_adaptive_font_size;
 use crate::gui::theme::{GADGET_YELLOW, TECH_GRAY};
 use crate::gui::updater::check_for_updates;
 
+/// Renders the settings dialog for application configuration.
+///
+/// This function creates a modal dialog window that allows users to configure
+/// application settings, primarily language preferences. The dialog provides
+/// an intuitive interface for changing settings with immediate effect and
+/// persistent storage of user preferences.
+///
+/// # Dialog Features
+///
+/// ## Language Selection
+/// - **Dropdown Interface**: ComboBox showing available languages with display names
+/// - **Immediate Application**: Language changes take effect immediately
+/// - **Persistent Storage**: Settings are automatically saved to disk
+/// - **Visual Feedback**: UI updates immediately to reflect language changes
+///
+/// ## Responsive Design
+/// - **Adaptive Sizing**: Dialog size adjusts based on screen dimensions
+/// - **Minimum Usability**: Maintains usable size on small screens
+/// - **Scalable Elements**: All UI elements scale with screen size
+///
+/// # Parameters
+///
+/// * `ctx` - egui context for window creation and screen size detection
+/// * `_ui` - UI context (unused as this creates its own window)
+/// * `app` - Application instance implementing LanguageProvider for text
+/// * `show_settings` - Mutable flag controlling dialog visibility
+/// * `localization_manager` - Mutable reference to localization system
+///
+/// # Behavior
+///
+/// ## Window Management
+/// - **Modal Dialog**: Blocks interaction with main application
+/// - **Resizable**: Users can resize for better visibility
+/// - **Non-Collapsible**: Prevents accidental minimization
+/// - **Close Button**: Standard close button in bottom-right corner
+///
+/// ## Language Management
+/// - **Current Selection**: Shows currently active language
+/// - **Available Options**: Lists all supported languages with native names
+/// - **Immediate Changes**: Language switches immediately upon selection
+/// - **Error Handling**: Graceful handling of language switching failures
+///
+/// # Examples
+///
+/// ## Usage in Main Application Loop
+///
+/// ```rust
+/// use inspector_gguf::gui::panels::render_settings_dialog;
+/// use inspector_gguf::localization::{LanguageProvider, LocalizationManager};
+/// use eframe::egui;
+///
+/// fn handle_settings_dialog<T: LanguageProvider>(
+///     ctx: &egui::Context,
+///     app: &mut T,
+///     show_settings: &mut bool,
+///     localization_manager: &mut LocalizationManager,
+/// ) {
+///     if *show_settings {
+///         // render_settings_dialog(ctx, ui, app, show_settings, localization_manager);
+///     }
+/// }
+/// ```
 pub fn render_settings_dialog<T: LanguageProvider>(
     ctx: &egui::Context,
     _ui: &mut egui::Ui,
@@ -78,6 +168,71 @@ pub fn render_settings_dialog<T: LanguageProvider>(
         });
 }
 
+/// Renders the about dialog with application information and update checking.
+///
+/// This function creates a comprehensive about dialog that displays application
+/// information, version details, licensing information, and provides update
+/// checking functionality. The dialog serves as both an information source
+/// and a gateway to application updates and external resources.
+///
+/// # Dialog Content
+///
+/// ## Application Information
+/// - **Title and Version**: Application name and current version number
+/// - **Description**: Brief description of application purpose and capabilities
+/// - **Technology Stack**: Information about underlying technologies (Rust, egui)
+///
+/// ## Legal Information
+/// - **License Details**: MIT license information and copyright notice
+/// - **Third-Party Components**: Information about open source dependencies
+/// - **License Commands**: Instructions for viewing detailed license information
+///
+/// ## Update Management
+/// - **Version Checking**: Manual update check with GitHub API integration
+/// - **Status Display**: Current update status with localized messages
+/// - **Download Links**: Direct links to latest releases when updates are available
+///
+/// # Parameters
+///
+/// * `ctx` - egui context for window creation and screen size detection
+/// * `_ui` - UI context (unused as this creates its own window)
+/// * `app` - Application instance implementing LanguageProvider for text
+/// * `show_about` - Mutable flag controlling dialog visibility
+/// * `update_status` - Mutable reference to current update check status
+///
+/// # Interactive Features
+///
+/// ## Update Checking
+/// - **Manual Check**: Button to trigger update check via GitHub API
+/// - **Status Messages**: Localized status messages for different scenarios
+/// - **Download Integration**: Direct browser opening for update downloads
+/// - **Error Handling**: Graceful handling of network and API failures
+///
+/// ## External Links
+/// - **GitHub Repository**: Direct link to project repository
+/// - **Release Downloads**: Links to latest release downloads
+/// - **Browser Integration**: Uses system default browser for external links
+///
+/// # Examples
+///
+/// ## Usage in Main Application Loop
+///
+/// ```rust
+/// use inspector_gguf::gui::panels::render_about_dialog;
+/// use inspector_gguf::localization::LanguageProvider;
+/// use eframe::egui;
+///
+/// fn handle_about_dialog<T: LanguageProvider>(
+///     ctx: &egui::Context,
+///     app: &mut T,
+///     show_about: &mut bool,
+///     update_status: &mut Option<String>,
+/// ) {
+///     if *show_about {
+///         // render_about_dialog(ctx, ui, app, show_about, update_status);
+///     }
+/// }
+/// ```
 pub fn render_about_dialog<T: LanguageProvider>(
     ctx: &egui::Context,
     _ui: &mut egui::Ui,
@@ -173,6 +328,89 @@ pub fn render_about_dialog<T: LanguageProvider>(
         });
 }
 
+/// Renders specialized right-side panels for viewing large content.
+///
+/// This function manages the display of resizable right-side panels that provide
+/// dedicated viewers for large text content such as chat templates, tokenizer
+/// data, and other substantial metadata values. The panels are non-modal and
+/// allow simultaneous interaction with the main application interface.
+///
+/// # Panel Types
+///
+/// ## Chat Template Panel
+/// - **Large Template Display**: Dedicated viewer for chat template content
+/// - **Monospace Formatting**: Preserves template structure and formatting
+/// - **Copy Functionality**: One-click copying to system clipboard
+///
+/// ## Token Data Panels
+/// - **GGML Tokens**: Viewer for tokenizer vocabulary data
+/// - **GGML Merges**: Viewer for byte-pair encoding merge rules
+/// - **Structured Display**: Organized presentation of tokenizer information
+///
+/// # Panel Features
+///
+/// ## Responsive Design
+/// - **Adaptive Width**: Panel width adjusts to screen size automatically
+/// - **Minimum Width**: Ensures usability across different screen sizes
+/// - **Resizable Interface**: Users can adjust panel width as needed
+///
+/// ## User Interface
+/// - **Header Controls**: Copy button and close button in panel header
+/// - **Scrollable Content**: Vertical scrolling for large content
+/// - **Monospace Text**: Preserves formatting for structured data
+/// - **Consistent Styling**: Matches application theme and color scheme
+///
+/// # Parameters
+///
+/// * `ctx` - egui context for panel creation and screen size calculations
+/// * `selected_chat_template` - Mutable reference to chat template content
+/// * `selected_ggml_tokens` - Mutable reference to token data content
+/// * `selected_ggml_merges` - Mutable reference to merge data content
+/// * `t_chat_template` - Localized title for chat template panel
+/// * `t_ggml_tokens` - Localized title for tokens panel
+/// * `t_ggml_merges` - Localized title for merges panel
+///
+/// # Panel Management
+///
+/// ## Exclusive Display
+/// - **Single Panel**: Only one content panel is shown at a time
+/// - **Automatic Switching**: Opening one panel closes others
+/// - **Clean State**: Closing a panel clears its content reference
+///
+/// ## Content Handling
+/// - **Large Text**: Optimized for displaying substantial text content
+/// - **Copy Integration**: System clipboard integration for easy copying
+/// - **Scroll Management**: Automatic scrolling for content navigation
+///
+/// # Examples
+///
+/// ## Usage in Main Application
+///
+/// ```rust
+/// use inspector_gguf::gui::panels::render_right_side_panels;
+/// use eframe::egui;
+///
+/// fn handle_content_panels(
+///     ctx: &egui::Context,
+///     selected_chat_template: &mut Option<String>,
+///     selected_ggml_tokens: &mut Option<String>,
+///     selected_ggml_merges: &mut Option<String>,
+/// ) {
+///     let t_chat_template = "Chat Template";
+///     let t_ggml_tokens = "GGML Tokens";
+///     let t_ggml_merges = "GGML Merges";
+///
+///     render_right_side_panels(
+///         ctx,
+///         selected_chat_template,
+///         selected_ggml_tokens,
+///         selected_ggml_merges,
+///         &t_chat_template,
+///         &t_ggml_tokens,
+///         &t_ggml_merges,
+///     );
+/// }
+/// ```
 pub fn render_right_side_panels(
     ctx: &egui::Context,
     selected_chat_template: &mut Option<String>,

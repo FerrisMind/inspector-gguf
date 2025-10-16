@@ -1,5 +1,77 @@
-//! Export functionality for GGUF metadata
-//! This module provides various export formats including CSV, YAML, Markdown, HTML, and PDF
+//! Export functionality for GGUF metadata in multiple formats.
+//!
+//! This module provides comprehensive export capabilities for GGUF metadata, supporting
+//! multiple output formats to meet different use cases and integration requirements.
+//! The export system handles data sanitization, format-specific encoding, and file
+//! management to ensure reliable and consistent output across all supported formats.
+//!
+//! # Supported Formats
+//!
+//! ## Structured Data Formats
+//! - **CSV**: Comma-separated values for spreadsheet applications and data analysis
+//! - **YAML**: Human-readable structured data format for configuration and documentation
+//!
+//! ## Document Formats  
+//! - **Markdown**: Lightweight markup for documentation and version control
+//! - **HTML**: Web-compatible format for online documentation and sharing
+//! - **PDF**: Print-ready format for reports and archival purposes
+//!
+//! ## Special Data Handling
+//! - **Base64 Encoding**: Automatic encoding for binary and large text data
+//! - **Content Sanitization**: Safe handling of control characters and special symbols
+//! - **Format-Specific Escaping**: Proper escaping for each output format
+//!
+//! # Usage Patterns
+//!
+//! ## Basic Export Operations
+//!
+//! ```rust
+//! use inspector_gguf::gui::export::{export_csv, export_yaml, export_markdown_to_file};
+//! use std::path::Path;
+//!
+//! let metadata = vec![
+//!     ("model.name".to_string(), "example-model".to_string()),
+//!     ("model.version".to_string(), "1.0".to_string()),
+//! ];
+//! let metadata_refs: Vec<(&String, &String)> = metadata.iter().map(|(k, v)| (k, v)).collect();
+//!
+//! // Export to different formats
+//! # std::fs::create_dir_all("temp").ok();
+//! export_csv(&metadata_refs, Path::new("temp/metadata.csv"))?;
+//! export_yaml(&metadata_refs, Path::new("temp/metadata.yaml"))?;
+//! export_markdown_to_file(&metadata_refs, Path::new("temp/metadata.md"))?;
+//! # std::fs::remove_dir_all("temp").ok();
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
+//!
+//! The export functions work with metadata from [`crate::format::load_gguf_metadata_sync`]
+//! and integrate with [`crate::gui::GgufApp`] for user-initiated exports.
+//!
+//! ## Advanced Export with Processing
+//!
+//! ```rust
+//! use inspector_gguf::gui::export::{export_markdown, export_html, export_pdf_from_markdown};
+//! use std::path::Path;
+//!
+//! let metadata = vec![
+//!     ("tokenizer.chat_template".to_string(), "Large template content...".repeat(100)),
+//! ];
+//! let metadata_refs: Vec<(&String, &String)> = metadata.iter().map(|(k, v)| (k, v)).collect();
+//!
+//! // Generate markdown content
+//! let markdown = export_markdown(&metadata_refs);
+//!
+//! // Convert to HTML
+//! let html = export_html(&metadata_refs)?;
+//!
+//! // Generate PDF (if dependencies available)
+//! # std::fs::create_dir_all("temp").ok();
+//! if let Err(e) = export_pdf_from_markdown(&markdown, Path::new("temp/report.pdf")) {
+//!     eprintln!("PDF generation failed: {}", e);
+//! }
+//! # std::fs::remove_dir_all("temp").ok();
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
 
 #![allow(dead_code)] // Allow dead code since this module is extracted but not yet integrated
 
@@ -7,7 +79,37 @@ use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use std::path::{Path, PathBuf};
 
-/// Ensures that a file path has the specified extension
+/// Ensures that a file path has the specified extension, adding it if missing.
+///
+/// This utility function checks if the given path already has a file extension,
+/// and if not, appends the specified extension. This ensures consistent file
+/// naming and helps prevent issues with file type detection and handling.
+///
+/// # Parameters
+///
+/// * `path` - The file path to check and potentially modify
+/// * `ext` - The extension to add (without the leading dot)
+///
+/// # Returns
+///
+/// A [`PathBuf`] with the guaranteed extension. If the path already has an
+/// extension, it returns the path unchanged. Otherwise, it returns a new
+/// path with the specified extension added.
+///
+/// # Examples
+///
+/// ```rust
+/// use inspector_gguf::gui::export::ensure_extension;
+/// use std::path::Path;
+///
+/// // Path without extension gets the extension added
+/// let path = ensure_extension(Path::new("document"), "pdf");
+/// assert_eq!(path.to_str().unwrap(), "document.pdf");
+///
+/// // Path with existing extension remains unchanged
+/// let path = ensure_extension(Path::new("document.txt"), "pdf");
+/// assert_eq!(path.to_str().unwrap(), "document.txt");
+/// ```
 pub fn ensure_extension(path: &Path, ext: &str) -> PathBuf {
     if path.extension().is_none() {
         let mut p = path.to_path_buf();
@@ -18,7 +120,42 @@ pub fn ensure_extension(path: &Path, ext: &str) -> PathBuf {
     }
 }
 
-/// Sanitizes text for markdown by removing control characters except newlines and tabs
+/// Sanitizes text for markdown output by removing problematic control characters.
+///
+/// This function processes text to make it safe for markdown rendering by removing
+/// control characters that could interfere with document structure or readability.
+/// It preserves essential whitespace characters (newlines and tabs) while replacing
+/// other control characters with spaces.
+///
+/// # Processing Rules
+///
+/// - **Preserved**: Newlines (`\n`) and tabs (`\t`) for formatting
+/// - **Replaced**: All other control characters become spaces
+/// - **Unchanged**: Regular printable characters pass through unmodified
+///
+/// # Parameters
+///
+/// * `s` - The input string to sanitize
+///
+/// # Returns
+///
+/// A sanitized string safe for markdown processing and display.
+///
+/// # Examples
+///
+/// ```rust
+/// use inspector_gguf::gui::export::sanitize_for_markdown;
+///
+/// // Control characters are replaced with spaces
+/// let input = "text\x00with\x01control\x02chars";
+/// let output = sanitize_for_markdown(input);
+/// assert_eq!(output, "text with control chars");
+///
+/// // Newlines and tabs are preserved
+/// let input = "line1\nline2\ttabbed";
+/// let output = sanitize_for_markdown(input);
+/// assert_eq!(output, "line1\nline2\ttabbed");
+/// ```
 pub fn sanitize_for_markdown(s: &str) -> String {
     s.chars()
         .map(|c| {
@@ -31,7 +168,45 @@ pub fn sanitize_for_markdown(s: &str) -> String {
         .collect()
 }
 
-/// Escapes markdown special characters to prevent structure breaking
+/// Escapes markdown special characters to prevent document structure corruption.
+///
+/// This function protects markdown document integrity by escaping characters that
+/// have special meaning in markdown syntax. It ensures that user content containing
+/// markdown-like syntax is displayed as literal text rather than being interpreted
+/// as formatting commands.
+///
+/// # Escaped Characters
+///
+/// - `*` - Prevents italic/bold formatting
+/// - `_` - Prevents italic/bold formatting  
+/// - `` ` `` - Prevents inline code formatting
+/// - `[` and `]` - Prevents link syntax
+/// - `<` and `>` - Prevents HTML tag interpretation
+/// - `#` - Prevents header formatting
+///
+/// # Parameters
+///
+/// * `s` - The input string containing potential markdown syntax
+///
+/// # Returns
+///
+/// A string with markdown special characters escaped using backslashes.
+///
+/// # Examples
+///
+/// ```rust
+/// use inspector_gguf::gui::export::escape_markdown_text;
+///
+/// // Special characters are escaped
+/// let input = "*bold* and _italic_ and `code`";
+/// let output = escape_markdown_text(input);
+/// assert_eq!(output, "\\*bold\\* and \\_italic\\_ and \\`code\\`");
+///
+/// // Headers and links are escaped
+/// let input = "# Header and [link](url)";
+/// let output = escape_markdown_text(input);
+/// assert_eq!(output, "\\# Header and \\[link\\](url)");
+/// ```
 pub fn escape_markdown_text(s: &str) -> String {
     s.chars()
         .map(|c| match c {
@@ -54,7 +229,53 @@ pub fn show_base64_dialog(data: &str) -> Result<(), Box<dyn std::error::Error>> 
     Ok(())
 }
 
-/// Exports metadata to CSV format
+/// Exports metadata to CSV (Comma-Separated Values) format.
+///
+/// This function creates a CSV file containing the metadata in a tabular format
+/// suitable for spreadsheet applications, data analysis tools, and database imports.
+/// The CSV format uses standard headers and proper escaping for compatibility
+/// with various CSV parsers.
+///
+/// # CSV Structure
+///
+/// - **Headers**: `key`, `value` (in English for universal compatibility)
+/// - **Encoding**: UTF-8 with proper CSV escaping
+/// - **Format**: RFC 4180 compliant CSV
+///
+/// # Parameters
+///
+/// * `metadata` - Slice of key-value pairs to export
+/// * `path` - Target file path (`.csv` extension will be added if missing)
+///
+/// # Returns
+///
+/// `Ok(())` on successful export, or an error if file operations fail.
+///
+/// # Errors
+///
+/// This function will return an error if:
+/// - The target directory doesn't exist or isn't writable
+/// - Disk space is insufficient
+/// - File permissions prevent writing
+/// - CSV serialization fails
+///
+/// # Examples
+///
+/// ```rust
+/// use inspector_gguf::gui::export::export_csv;
+/// use std::path::Path;
+///
+/// let metadata = vec![
+///     ("model.name".to_string(), "llama-7b".to_string()),
+///     ("model.parameters".to_string(), "7B".to_string()),
+/// ];
+/// let metadata_refs: Vec<(&String, &String)> = metadata.iter().map(|(k, v)| (k, v)).collect();
+///
+/// # std::fs::create_dir_all("temp").ok();
+/// export_csv(&metadata_refs, Path::new("temp/model_info.csv"))?;
+/// # std::fs::remove_dir_all("temp").ok();
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 pub fn export_csv(
     metadata: &[(&String, &String)],
     path: &Path,

@@ -1,12 +1,112 @@
 use crate::localization::Language;
 use std::env;
 
-/// System locale detector for automatic language detection
+/// Cross-platform system locale detector for automatic language detection.
+///
+/// The `SystemLocaleDetector` provides automatic detection of the user's preferred
+/// language based on system locale settings. It supports multiple platforms and
+/// uses platform-specific APIs and environment variables to determine the most
+/// appropriate language setting.
+///
+/// # Platform Support
+///
+/// - **Windows**: Uses Windows API (`GetUserDefaultLocaleName`, `GetUserDefaultLCID`)
+/// - **macOS**: Uses system defaults and environment variables
+/// - **Linux/Unix**: Uses standard environment variables (`LC_ALL`, `LC_MESSAGES`, `LANG`)
+///
+/// # Detection Priority
+///
+/// The detector follows a priority-based approach:
+/// 1. Platform-specific APIs (Windows API, macOS defaults)
+/// 2. Environment variables in order: `LC_ALL` → `LC_MESSAGES` → `LANG` → `LANGUAGE`
+/// 3. Returns `None` if no supported locale is detected
+///
+/// # Examples
+///
+/// ## Basic Detection
+///
+/// ```rust
+/// use inspector_gguf::localization::{SystemLocaleDetector, Language};
+///
+/// // Detect system language
+/// if let Some(detected_language) = SystemLocaleDetector::detect() {
+///     println!("Detected language: {:?}", detected_language);
+///     match detected_language {
+///         Language::English => println!("System is set to English"),
+///         Language::Russian => println!("Система настроена на русский язык"),
+///         Language::PortugueseBrazilian => println!("Sistema configurado para português brasileiro"),
+///     }
+/// } else {
+///     println!("Could not detect system language, using default");
+/// }
+/// ```
+///
+/// ## Manual Locale String Processing
+///
+/// ```rust
+/// use inspector_gguf::localization::SystemLocaleDetector;
+///
+/// // Get raw locale string
+/// if let Some(locale_string) = SystemLocaleDetector::get_system_locale_string() {
+///     println!("Raw system locale: {}", locale_string);
+/// }
+/// ```
+///
+/// # Supported Locale Formats
+///
+/// The detector can parse various locale string formats:
+/// - ISO codes: "en", "ru", "pt-BR"
+/// - Full locales: "en_US.UTF-8", "ru_RU.UTF-8", "pt_BR.UTF-8"
+/// - Windows format: "en-US", "ru-RU", "pt-BR"
+/// - Named locales: "English", "Russian", "Portuguese_Brazil"
 pub struct SystemLocaleDetector;
 
 impl SystemLocaleDetector {
-    /// Detect the system locale and return the corresponding Language
-    /// Returns None if the system locale is not supported
+    /// Detects the system locale and returns the corresponding Language.
+    ///
+    /// This method attempts to determine the user's preferred language by checking
+    /// platform-specific locale sources in order of preference. It returns the first
+    /// supported language found, or `None` if no supported locale is detected.
+    ///
+    /// # Detection Process
+    ///
+    /// 1. **Platform-specific detection**: Uses native APIs when available
+    /// 2. **Environment variables**: Checks standard locale environment variables
+    /// 3. **Parsing and mapping**: Converts locale strings to supported Language variants
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(Language)` if a supported locale is detected, or `None` if:
+    /// - No locale information is available
+    /// - The detected locale is not supported by the application
+    /// - The locale format cannot be parsed
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use inspector_gguf::localization::{SystemLocaleDetector, Language};
+    ///
+    /// match SystemLocaleDetector::detect() {
+    ///     Some(Language::English) => {
+    ///         println!("English locale detected");
+    ///     }
+    ///     Some(Language::Russian) => {
+    ///         println!("Russian locale detected");
+    ///     }
+    ///     Some(Language::PortugueseBrazilian) => {
+    ///         println!("Brazilian Portuguese locale detected");
+    ///     }
+    ///     None => {
+    ///         println!("No supported locale detected, using default");
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// # Platform Behavior
+    ///
+    /// - **Windows**: Prioritizes `GetUserDefaultLocaleName()` API
+    /// - **macOS**: Uses `defaults read -g AppleLocale` when available
+    /// - **Linux**: Checks environment variables in standard order
     pub fn detect() -> Option<Language> {
         if let Some(locale_string) = Self::get_system_locale_string() {
             Language::from_locale(&locale_string)
@@ -15,7 +115,38 @@ impl SystemLocaleDetector {
         }
     }
 
-    /// Get the raw system locale string from various sources
+    /// Retrieves the raw system locale string from various platform sources.
+    ///
+    /// This method attempts to get the unprocessed locale string from the system
+    /// using platform-appropriate methods. The returned string can then be parsed
+    /// to determine the appropriate Language variant.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(String)` containing the raw locale identifier, or `None` if
+    /// no locale information is available from any source.
+    ///
+    /// # Platform Sources
+    ///
+    /// - **Windows**: Windows API locale functions
+    /// - **macOS**: System defaults and environment variables
+    /// - **Linux/Unix**: Standard locale environment variables
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use inspector_gguf::localization::SystemLocaleDetector;
+    ///
+    /// if let Some(locale) = SystemLocaleDetector::get_system_locale_string() {
+    ///     println!("System locale string: {}", locale);
+    ///     // Example outputs:
+    ///     // "en_US.UTF-8" (Linux)
+    ///     // "en-US" (Windows)
+    ///     // "ru_RU" (macOS)
+    /// } else {
+    ///     println!("No locale information available");
+    /// }
+    /// ```
     pub fn get_system_locale_string() -> Option<String> {
         // Try Windows-specific detection first
         #[cfg(target_os = "windows")]

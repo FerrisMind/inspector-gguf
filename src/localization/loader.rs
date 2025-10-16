@@ -4,16 +4,155 @@ use std::path::Path;
 use serde_json::Value;
 use crate::localization::{Language, LocalizationError};
 
+/// Type alias for translation data structure containing nested key-value pairs.
+///
+/// Translation maps store hierarchical translation data where keys can be accessed
+/// using dot notation (e.g., "buttons.load" maps to `translations["buttons"]["load"]`).
 pub type TranslationMap = HashMap<String, Value>;
 
+/// Handles loading, validation, and management of translation files.
+///
+/// The `TranslationLoader` is responsible for reading translation files from disk,
+/// validating their structure and completeness, and providing utilities for
+/// translation management and analysis.
+///
+/// # Features
+///
+/// - **File Loading**: Reads JSON translation files from the `translations/` directory
+/// - **Structure Validation**: Ensures all required sections and keys are present
+/// - **Completeness Analysis**: Compares translations across languages for missing keys
+/// - **Error Recovery**: Handles missing or corrupted translation files gracefully
+/// - **Batch Operations**: Can load all translations at once with validation
+///
+/// # Translation File Structure
+///
+/// Translation files must follow this JSON structure:
+///
+/// ```json
+/// {
+///   "app": {
+///     "title": "Inspector GGUF",
+///     "version": "Version"
+///   },
+///   "buttons": {
+///     "load": "Load",
+///     "clear": "Clear",
+///     "export": "Export"
+///   },
+///   "menu": {
+///     "file": "File",
+///     "export": "Export"
+///   },
+///   "export": {
+///     "csv": "CSV",
+///     "yaml": "YAML"
+///   },
+///   "messages": {
+///     "loading": "Loading...",
+///     "no_metadata": "No metadata available"
+///   },
+///   "settings": {
+///     "title": "Settings",
+///     "language": "Language"
+///   },
+///   "about": {
+///     "title": "About",
+///     "description": "GGUF file inspector"
+///   },
+///   "languages": {
+///     "english": "English",
+///     "russian": "Russian"
+///   }
+/// }
+/// ```
+///
+/// # Examples
+///
+/// ## Basic Loading
+///
+/// ```rust
+/// use inspector_gguf::localization::{TranslationLoader, Language};
+///
+/// let loader = TranslationLoader::new();
+///
+/// // Load specific language
+/// let english_translations = loader.load_translation(Language::English)?;
+/// let title = TranslationLoader::get_translation_value(&english_translations, "app.title");
+/// assert_eq!(title, Some("Inspector GGUF".to_string()));
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+///
+/// ## Batch Loading and Validation
+///
+/// ```rust
+/// use inspector_gguf::localization::TranslationLoader;
+///
+/// let loader = TranslationLoader::new();
+///
+/// // Load all available translations
+/// let all_translations = loader.load_all_translations()?;
+///
+/// // Generate completeness report
+/// let report = loader.generate_completeness_report(&all_translations)?;
+/// println!("Translation Status:\n{}", report);
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 pub struct TranslationLoader;
 
 impl TranslationLoader {
+    /// Creates a new TranslationLoader instance.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use inspector_gguf::localization::TranslationLoader;
+    ///
+    /// let loader = TranslationLoader::new();
+    /// ```
     pub fn new() -> Self {
         Self
     }
 
-    /// Load translation file for the specified language
+    /// Loads and validates a translation file for the specified language.
+    ///
+    /// This method reads the JSON translation file from the `translations/` directory,
+    /// parses it, and validates its structure to ensure all required sections and
+    /// keys are present.
+    ///
+    /// # Arguments
+    ///
+    /// * `language` - The language to load translations for
+    ///
+    /// # Returns
+    ///
+    /// Returns a `TranslationMap` containing the parsed and validated translation data,
+    /// or a `LocalizationError` if the file is missing, corrupted, or invalid.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The translation file doesn't exist
+    /// - The file cannot be read (permissions, I/O error)
+    /// - The JSON format is invalid
+    /// - Required sections or keys are missing
+    /// - The translation structure is malformed
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use inspector_gguf::localization::{TranslationLoader, Language};
+    ///
+    /// let loader = TranslationLoader::new();
+    ///
+    /// // Load English translations
+    /// let translations = loader.load_translation(Language::English)?;
+    /// assert!(translations.contains_key("app"));
+    /// assert!(translations.contains_key("buttons"));
+    ///
+    /// // Load Russian translations
+    /// let russian_translations = loader.load_translation(Language::Russian)?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn load_translation(&self, language: Language) -> Result<TranslationMap, LocalizationError> {
         let filename = format!("translations/{}.json", language.to_code());
         let path = Path::new(&filename);
@@ -34,7 +173,58 @@ impl TranslationLoader {
         Ok(translation)
     }
 
-    /// Validate that the translation has the required structure
+    /// Validates that a translation map has the required structure and keys.
+    ///
+    /// This method performs comprehensive validation of translation data to ensure
+    /// it contains all required sections and keys needed by the application.
+    /// It checks both the presence of sections and the structure of nested objects.
+    ///
+    /// # Required Sections
+    ///
+    /// The following top-level sections must be present:
+    /// - `app` - Application metadata (title, version)
+    /// - `buttons` - UI button labels
+    /// - `menu` - Menu item labels
+    /// - `export` - Export format names
+    /// - `messages` - User messages and notifications
+    /// - `settings` - Settings dialog content
+    /// - `about` - About dialog content
+    /// - `languages` - Language display names
+    ///
+    /// # Arguments
+    ///
+    /// * `translation` - The translation map to validate
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if validation passes, or a `LocalizationError` describing
+    /// the validation failure.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - Any required section is missing
+    /// - A section is not a JSON object
+    /// - Required keys within sections are missing
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use inspector_gguf::localization::TranslationLoader;
+    /// use std::collections::HashMap;
+    /// use serde_json::json;
+    ///
+    /// let loader = TranslationLoader::new();
+    ///
+    /// // Valid translation structure
+    /// let mut valid_translation = HashMap::new();
+    /// valid_translation.insert("app".to_string(), json!({"title": "Test", "version": "1.0"}));
+    /// valid_translation.insert("buttons".to_string(), json!({"load": "Load"}));
+    /// // ... other required sections
+    ///
+    /// // This would pass validation (if complete)
+    /// // let result = loader.validate_translation(&valid_translation);
+    /// ```
     pub fn validate_translation(&self, translation: &TranslationMap) -> Result<(), LocalizationError> {
         let required_sections = [
             "app",

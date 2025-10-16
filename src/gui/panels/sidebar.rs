@@ -1,5 +1,35 @@
-// Left sidebar panel functionality
-// Handles action buttons, export buttons, and settings
+//! Left sidebar panel functionality.
+//!
+//! This module implements the left sidebar panel which serves as the primary
+//! action center for the Inspector GGUF application. It provides quick access
+//! to file operations, export functions, and application settings through a
+//! vertically organized, scrollable interface.
+//!
+//! # Panel Features
+//!
+//! ## File Operations
+//! - **Load Button**: Opens file dialog for GGUF file selection
+//! - **Clear Button**: Removes currently loaded metadata
+//! - **Drag & Drop Support**: Handled by the main content panel
+//!
+//! ## Export Functions
+//! Multiple export formats with individual buttons:
+//! - CSV export for spreadsheet applications
+//! - YAML export for structured data
+//! - Markdown export for documentation
+//! - HTML export for web viewing
+//! - PDF export for reports and printing
+//!
+//! ## Application Controls
+//! - **Settings Button**: Opens configuration dialog
+//! - **About Button**: Shows application information
+//!
+//! # Design Features
+//!
+//! - **Responsive Width**: Adapts to screen size automatically
+//! - **Scrollable Content**: Handles overflow on small screens
+//! - **Adaptive Typography**: Font sizes scale with display
+//! - **Icon Integration**: Uses Phosphor icons for visual clarity
 
 use eframe::egui;
 use rfd::FileDialog;
@@ -10,6 +40,72 @@ use crate::gui::theme::TECH_GRAY;
 use crate::gui::export::{export_csv, export_yaml, export_markdown_to_file, export_html_to_file, export_markdown, export_pdf_from_markdown};
 use crate::gui::loader::{load_gguf_metadata_async, LoadingResult, MetadataEntry};
 
+/// Renders the left sidebar panel with action buttons and export controls.
+///
+/// This function creates a comprehensive sidebar interface that provides access to
+/// all major application functions including file operations, export capabilities,
+/// and application settings. The sidebar uses adaptive sizing and scrolling to
+/// work effectively across different screen sizes.
+///
+/// # Panel Layout
+///
+/// The sidebar is organized into logical sections:
+///
+/// 1. **File Operations** (top): Load and Clear buttons
+/// 2. **Export Section** (middle): Multiple format export buttons
+/// 3. **Application Controls** (bottom): Settings and About buttons
+///
+/// # Parameters
+///
+/// * `ctx` - egui context for screen size calculations and theming
+/// * `ui` - UI context for rendering within the sidebar panel
+/// * `app` - Application instance implementing LanguageProvider for text
+/// * `metadata` - Mutable reference to current metadata for clearing
+/// * `loading` - Mutable loading state flag
+/// * `loading_progress` - Shared progress indicator for async operations
+/// * `loading_result` - Shared result container for async loading
+/// * `show_settings` - Mutable flag for settings dialog visibility
+/// * `show_about` - Mutable flag for about dialog visibility
+///
+/// # Behavior
+///
+/// ## File Operations
+/// - **Load Button**: Opens native file dialog, starts async loading if file selected
+/// - **Clear Button**: Immediately clears all loaded metadata
+/// - **Loading State**: Load button disabled during active loading operations
+///
+/// ## Export Operations
+/// - **Format Selection**: Individual buttons for each supported export format
+/// - **File Dialogs**: Native save dialogs with appropriate file extensions
+/// - **Error Handling**: Displays localized error messages for failed exports
+///
+/// ## Responsive Design
+/// - **Button Sizing**: Adapts to sidebar width with consistent margins
+/// - **Font Scaling**: Text sizes adjust based on screen dimensions
+/// - **Scrolling**: Vertical scroll area prevents content overflow
+///
+/// # Examples
+///
+/// ## Basic Usage in Application
+///
+/// ```rust
+/// use inspector_gguf::gui::panels::render_sidebar;
+/// use inspector_gguf::localization::LanguageProvider;
+/// use eframe::egui;
+/// use std::sync::{Arc, Mutex};
+///
+/// fn render_app_sidebar<T: LanguageProvider>(
+///     ctx: &egui::Context,
+///     app: &T,
+///     // ... other parameters
+/// ) {
+///     egui::SidePanel::left("main_sidebar")
+///         .resizable(false)
+///         .show(ctx, |ui| {
+///             // render_sidebar(ctx, ui, app, /* ... parameters */);
+///         });
+/// }
+/// ```
 #[allow(clippy::too_many_arguments)]
 pub fn render_sidebar<T: LanguageProvider>(
     ctx: &egui::Context,

@@ -1,5 +1,38 @@
-// Main application struct and eframe::App implementation
-// This module acts as the orchestrator for all GUI functionality
+//! Main application struct and eframe::App implementation.
+//!
+//! This module contains the [`GgufApp`] struct which serves as the central orchestrator
+//! for all GUI functionality in the Inspector GGUF application. It implements the
+//! [`eframe::App`] trait to integrate with the egui framework and manages application
+//! state, user interactions, and rendering coordination.
+//!
+//! # Architecture
+//!
+//! The [`GgufApp`] follows a centralized state management pattern where all application
+//! state is contained within a single struct. This approach simplifies state management
+//! and ensures consistent data flow throughout the application.
+//!
+//! ## Key Responsibilities
+//!
+//! - **State Management**: Maintains all application state including metadata via [`MetadataEntry`], UI state, and settings
+//! - **Event Handling**: Processes user interactions and system events through [`eframe::egui`] integration
+//! - **Rendering Coordination**: Orchestrates the rendering of different UI panels using [`crate::gui::panels`] functions
+//! - **Async Operations**: Manages background file loading via [`crate::gui::loader::load_gguf_metadata_async`] and update checking through [`crate::gui::updater::check_for_updates`]
+//! - **Localization**: Integrates with [`crate::localization::LocalizationManager`] for multi-language support
+//!
+//! # Usage
+//!
+//! The application is typically created and run through the eframe framework:
+//!
+//! ```rust
+//! use inspector_gguf::gui::GgufApp;
+//! use eframe::NativeOptions;
+//!
+//! let app = GgufApp::default();
+//! let options = NativeOptions::default();
+//! # // Note: This example doesn't actually run to avoid blocking tests
+//! # let _ = (app, options);
+//! // eframe::run_native("Inspector GGUF", options, Box::new(|_cc| Box::new(app)));
+//! ```
 
 use std::sync::{Arc, Mutex};
 use eframe::egui;
@@ -11,21 +44,82 @@ use crate::gui::updater::check_for_updates;
 use crate::gui::panels::dialogs;
 use rfd;
 
-/// Main application struct that orchestrates all GUI functionality
+/// Main application struct that orchestrates all GUI functionality.
+///
+/// [`GgufApp`] serves as the central state container and event coordinator for the
+/// Inspector GGUF application. It implements [`eframe::App`] to integrate with the
+/// egui framework and manages all aspects of the user interface and application logic.
+///
+/// # Fields
+///
+/// ## Core Data
+/// - `metadata`: Currently loaded GGUF metadata entries
+/// - `filter`: Text filter for metadata display
+///
+/// ## Loading State
+/// - `loading`: Whether a file is currently being loaded
+/// - `loading_progress`: Shared progress indicator for async operations
+/// - `loading_result`: Shared result container for async loading
+///
+/// ## UI State
+/// - `show_settings`: Whether the settings dialog is visible
+/// - `show_about`: Whether the about dialog is visible
+/// - `selected_*`: Currently selected content for right-side panels
+///
+/// ## Services
+/// - `update_status`: Current update check status message from [`crate::gui::updater::check_for_updates`]
+/// - `localization_manager`: Handles multi-language support via [`crate::localization::LocalizationManager`]
+///
+/// # Examples
+///
+/// ## Creating a new application instance
+///
+/// ```rust
+/// use inspector_gguf::gui::GgufApp;
+///
+/// let app = GgufApp::default();
+/// assert!(app.metadata.is_empty());
+/// assert!(!app.loading);
+/// ```
+///
+/// ## Accessing localization
+///
+/// ```rust
+/// use inspector_gguf::gui::GgufApp;
+/// use inspector_gguf::localization::LanguageProvider;
+///
+/// let app = GgufApp::default();
+/// let title = app.t("app.title");
+/// assert!(!title.is_empty());
+/// ```
+///
+/// See also [`crate::localization::LocalizationManager`] for direct localization management,
+/// [`crate::localization::Language`] for supported languages, and [`crate::gui::loader::MetadataEntry`]
+/// for the metadata structure used in the application.
 pub struct GgufApp {
+    /// Currently loaded GGUF metadata entries for display and interaction.
     pub metadata: Vec<MetadataEntry>,
+    /// Current filter text for searching through metadata keys and values.
     pub filter: String,
+    /// Flag indicating whether a file loading operation is currently in progress.
     pub loading: bool,
+    /// Shared progress indicator for async file loading operations (0.0 to 1.0).
     pub loading_progress: Arc<Mutex<f32>>,
+    /// Shared result container for async loading operations.
     pub loading_result: LoadingResult,
+    /// Flag controlling the visibility of the settings dialog window.
     pub show_settings: bool,
+    /// Flag controlling the visibility of the about dialog window.
     pub show_about: bool,
+    /// Currently selected chat template content for right-side panel display.
     pub selected_chat_template: Option<String>,
+    /// Currently selected GGML tokens content for right-side panel display.
     pub selected_ggml_tokens: Option<String>,
+    /// Currently selected GGML merges content for right-side panel display.
     pub selected_ggml_merges: Option<String>,
-    // Update checking fields
+    /// Current status message from update checking operations.
     pub update_status: Option<String>,
-    // Localization
+    /// Localization manager for multi-language support and text translation.
     pub localization_manager: LocalizationManager,
 }
 
