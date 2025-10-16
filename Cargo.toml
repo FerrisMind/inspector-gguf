@@ -25,8 +25,6 @@ exclude = [
     "CHANGELOG.md",
     "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md",
-    "README.pt-BR.md",
-    "README.ru.md"
 ]
 
 # Игнорируемые зависимости для cargo-machete
