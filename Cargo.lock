@@ -2941,7 +2941,7 @@ dependencies = [
 
 [[package]]
 name = "inspector-gguf"
-version = "3.1.0"
+version = "0.3.0"
 dependencies = [
  "base64 0.22.1",
  "candle-core",

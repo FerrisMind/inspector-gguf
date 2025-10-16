@@ -101,4 +101,19 @@ pub enum VersioningError {
     /// - Version string encoding problems
     #[error("Failed to parse version: {0}")]
     VersionParseError(String),
+
+    /// Git operation failed during commit analysis or repository operations.
+    ///
+    /// This error occurs when Git commands fail during commit analysis, tag
+    /// retrieval, or other repository operations required for automatic
+    /// version determination.
+    ///
+    /// # Common Causes
+    /// - Git not installed or not in PATH
+    /// - Not in a Git repository
+    /// - Repository has no commits or tags
+    /// - Git command execution failure
+    /// - Insufficient permissions for Git operations
+    #[error("Git operation failed: {0}")]
+    GitError(String),
 }
